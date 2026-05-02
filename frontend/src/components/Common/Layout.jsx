@@ -1,7 +1,39 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
-import { LogOut, User, Bell, Settings, Menu } from 'lucide-react'
+import { LogOut, User, Bell, Settings, Menu, Search, X } from 'lucide-react'
+
+const SECCIONES = [
+  { nombre: 'Dashboard', desc: 'Panel principal', ruta: '/', roles: ['admin', 'teacher', 'docente', 'student'] },
+  { nombre: 'Competencias', desc: 'Gestión de competencias académicas', ruta: '/competencias', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Actividades', desc: 'Gestión de actividades', ruta: '/actividades', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Criterios', desc: 'Criterios de evaluación', ruta: '/criterios', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Niveles de Logro', desc: 'Definir niveles de desempeño', ruta: '/niveles', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Escalas de Calificación', desc: 'Escalas numéricas de evaluación', ruta: '/escalas', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Evaluaciones', desc: 'Calificar estudiantes', ruta: '/evaluacion', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Re-evaluaciones', desc: 'Gestionar re-evaluaciones', ruta: '/re-evaluations', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Retroalimentación', desc: 'Feedback a estudiantes', ruta: '/retroalimentacion', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Rúbricas Globales', desc: 'Plantillas de rúbricas del sistema', ruta: '/rubricas', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Mis Rúbricas', desc: 'Rúbricas personales', ruta: '/mis-rubricas', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Plantillas', desc: 'Plantillas del sistema', ruta: '/plantillas', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Mis Cursos', desc: 'Cursos asignados', ruta: '/mis-cursos', roles: ['admin', 'teacher', 'docente', 'student'] },
+  { nombre: 'Estudiantes', desc: 'Gestión de estudiantes', ruta: '/estudiantes', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Seguimiento de Grupo', desc: 'Seguimiento grupal de desempeño', ruta: '/group-tracking', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Asistencia', desc: 'Control de asistencia', ruta: '/asistencia', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Planes de Mejora', desc: 'Planes de mejoramiento estudiantil', ruta: '/improvement-plans', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Boletín', desc: 'Boletines estudiantiles', ruta: '/boletin', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Evidencias de Proyecto', desc: 'Evidencias de proyectos', ruta: '/evidencias-proyecto', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Evidencias', desc: 'Gestión de evidencias', ruta: '/evidencias', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Periodos Académicos', desc: 'Gestión de periodos académicos', ruta: '/academic-periods', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Reportes', desc: 'Reportes del sistema', ruta: '/reportes', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Reportes de Dirección', desc: 'Reportes para directivos', ruta: '/reportes-director', roles: ['admin'] },
+  { nombre: 'Exportación', desc: 'Exportar datos del sistema', ruta: '/exportar', roles: ['admin', 'teacher', 'docente'] },
+  { nombre: 'Auditoría', desc: 'Registro de actividad del sistema', ruta: '/auditoria', roles: ['admin'] },
+  { nombre: 'Gestión de Usuarios', desc: 'Crear y administrar usuarios', ruta: '/users', roles: ['admin'] },
+  { nombre: 'Roles y Permisos', desc: 'Gestionar roles del sistema', ruta: '/roles', roles: ['admin'] },
+  { nombre: 'Configuración del Sistema', desc: 'Ajustes generales', ruta: '/config', roles: ['admin'] },
+  { nombre: 'Mi Progreso', desc: 'Ver mi progreso académico', ruta: '/progresos', roles: ['student'] },
+]
 
 export default function Layout({ children, usuario }) {
   const navigate = useNavigate()
@@ -11,6 +43,9 @@ export default function Layout({ children, usuario }) {
   const [configAbierta, setConfigAbierta] = useState(false)
   const [ultimoAcceso, setUltimoAcceso] = useState(null)
   const [accesoActual, setAccesoActual] = useState(null)
+  const [busqueda, setBusqueda] = useState('')
+  const [indiceSel, setIndiceSel] = useState(0)
+  const refBusqueda = useRef(null)
 
   useEffect(() => {
     if (!usuario?.id) return
@@ -55,6 +90,40 @@ export default function Layout({ children, usuario }) {
     ]
   }, [usuario?.rol])
 
+  const rol = usuario?.rol?.toLowerCase()
+  const resultados = busqueda.trim().length > 0
+    ? SECCIONES.filter(s =>
+        s.roles.includes(rol) &&
+        (s.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+         s.desc.toLowerCase().includes(busqueda.toLowerCase()))
+      ).slice(0, 8)
+    : []
+
+  const irA = (ruta) => {
+    setBusqueda('')
+    navigate(ruta)
+  }
+
+  const onKeyDown = (e) => {
+    if (!resultados.length) return
+    if (e.key === 'ArrowDown') { e.preventDefault(); setIndiceSel(i => Math.min(i + 1, resultados.length - 1)) }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); setIndiceSel(i => Math.max(i - 1, 0)) }
+    if (e.key === 'Enter')     { irA(resultados[indiceSel]?.ruta) }
+    if (e.key === 'Escape')    { setBusqueda('') }
+  }
+
+  useEffect(() => { setIndiceSel(0) }, [busqueda])
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (refBusqueda.current && !refBusqueda.current.contains(e.target)) {
+        setBusqueda('')
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
   const handleLogout = () => {
     localStorage.removeItem('acceso_token')
     localStorage.removeItem('usuario')
@@ -85,15 +154,42 @@ export default function Layout({ children, usuario }) {
             </div>
           </div>
 
-          {/* Center - Search (opcional) */}
-          <div className="hidden md:flex flex-1 max-w-md mx-8">
-            <div className="w-full px-4 py-2 bg-neutral-800/30 rounded-lg border border-neutral-700/50 focus-within:border-primary-brand/50 transition">
+          {/* Center - Search */}
+          <div className="hidden md:flex flex-1 max-w-md mx-8 relative" ref={refBusqueda}>
+            <div className="w-full flex items-center gap-2 px-4 py-2 bg-neutral-800/30 rounded-lg border border-neutral-700/50 focus-within:border-primary-brand/50 transition">
+              <Search className="w-4 h-4 text-neutral-500 shrink-0" />
               <input
                 type="text"
-                placeholder="Buscar..."
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                onKeyDown={onKeyDown}
+                placeholder="Buscar sección..."
                 className="w-full bg-transparent text-sm text-white placeholder-neutral-500 outline-none"
               />
+              {busqueda && (
+                <button onClick={() => setBusqueda('')}>
+                  <X className="w-4 h-4 text-neutral-500 hover:text-neutral-300" />
+                </button>
+              )}
             </div>
+
+            {resultados.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-neutral-950 border border-neutral-700 rounded-lg shadow-2xl shadow-black/50 overflow-hidden z-50">
+                {resultados.map((seccion, i) => (
+                  <button
+                    key={seccion.ruta}
+                    onClick={() => irA(seccion.ruta)}
+                    onMouseEnter={() => setIndiceSel(i)}
+                    className={`w-full text-left px-4 py-3 flex flex-col gap-0.5 transition ${
+                      i === indiceSel ? 'bg-primary-brand/20' : 'hover:bg-neutral-800/60'
+                    }`}
+                  >
+                    <span className="text-sm font-medium text-white">{seccion.nombre}</span>
+                    <span className="text-xs text-neutral-500">{seccion.desc}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Right - Actions */}

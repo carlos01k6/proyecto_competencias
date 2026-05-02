@@ -3,7 +3,7 @@ from flask_mail import Mail, Message
 from supabase import Client
 
 from ..supabase_client import get_supabase
-from .exportacion import crear_pdf_boletin, obtener_boletin_estudiante
+from .export import crear_pdf_boletin, obtener_boletin_estudiante
 
 correos_bp = Blueprint("correos", __name__, url_prefix="/api/correos")
 supabase: Client = get_supabase()

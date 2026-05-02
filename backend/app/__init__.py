@@ -7,37 +7,37 @@ from flask_jwt_extended import JWTManager
 
 from .models import db
 from .routes.auth import auth_bp
-from .routes.competencias import competencias_bp
-from .routes.resultados import resultados_bp
-from .routes.criterios import criterios_bp
-from .routes.actividades import actividades_bp
-from .routes.evidencias import evidencias_bp
-from .routes.evaluaciones import evaluaciones_bp
-from .routes.reportes import reportes_bp
+from .routes.competencies import competencias_bp
+from .routes.outcomes import resultados_bp
+from .routes.criteria import criterios_bp
+from .routes.activities import actividades_bp
+from .routes.evidence import evidencias_bp
+from .routes.evaluations import evaluaciones_bp
+from .routes.reports import reportes_bp
 from .routes.config import config_bp
 from .routes.excel import excel_bp
-from .routes.evidencias_proyecto import evidencias_proyecto_bp
-from .routes.niveles import niveles_bp
-from .routes.escalas import escalas_bp
-from .routes.retroalimentacion import retroalimentacion_bp
-from .routes.auditoria import auditoria_bp
-from .routes.boletin import boletin_bp
+from .routes.project_evidence import evidencias_proyecto_bp
+from .routes.levels import niveles_bp
+from .routes.scales import escalas_bp
+from .routes.feedback import retroalimentacion_bp
+from .routes.audit import auditoria_bp
+from .routes.bulletin import boletin_bp
 from .routes.improvement_plans import improvement_plans_bp
 from .routes.group_tracking import group_tracking_bp
 from .routes.academic_periods import academic_periods_bp
 from .routes.re_evaluations import re_evaluations_bp
-from .routes.plantillas import plantillas_bp
-from .routes.rubricas import rubricas_bp
-from .routes.seguimiento import seguimiento_bp
-from .routes.cursos import cursos_bp
-from .routes.estudiantes import estudiantes_bp
-from .routes.estudiantes_curso import estudiantes_curso_bp
-from .routes.registro_batch import registro_batch_bp
-from .routes.usuarios import usuarios_bp
+from .routes.templates import plantillas_bp
+from .routes.rubrics import rubricas_bp
+from .routes.tracking import seguimiento_bp
+from .routes.courses import cursos_bp
+from .routes.students import estudiantes_bp
+from .routes.course_students import estudiantes_curso_bp
+from .routes.batch_registration import registro_batch_bp
+from .routes.users import usuarios_bp
 from .routes.roles import roles_bp
-from .routes.asistencia import asistencia_bp
-from .routes.exportacion import exportacion_bp
-from .routes.correos import correos_bp, mail
+from .routes.attendance import asistencia_bp
+from .routes.export import exportacion_bp
+from .routes.emails import correos_bp, mail
 
 
 def create_app():
@@ -57,7 +57,11 @@ def create_app():
 
     db.init_app(app)
     mail.init_app(app)
-    CORS(app, origins=["http://localhost:5173", "http://localhost:3000"])
+    CORS(app,
+         origins=["http://localhost:5173", "http://localhost:3000"],
+         supports_credentials=True,
+         allow_headers=["Content-Type", "Authorization"],
+         expose_headers=["Content-Type", "Authorization"])
     JWTManager(app)
 
     app.register_blueprint(auth_bp)

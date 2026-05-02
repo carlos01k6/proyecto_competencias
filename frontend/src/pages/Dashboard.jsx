@@ -1,8 +1,8 @@
-﻿import React, { useState, useEffect } from "react"
-import { useCompetencias } from "../hooks/useCompetencias"
+import React, { useState, useEffect } from "react"
+import { useCompetencias } from "../hooks/useCompetencies"
 import { useNavigate } from "react-router-dom"
-import { useEvaluaciones } from "../hooks/useEvaluaciones"
-import { useActividades } from "../hooks/useActividades"
+import { useEvaluaciones } from "../hooks/useEvaluations"
+import { useActividades } from "../hooks/useActivities"
 import {
   BarChart3, TrendingUp, Users, BookOpen, Award, Clock,
   CheckCircle, AlertCircle, ArrowRight, Zap

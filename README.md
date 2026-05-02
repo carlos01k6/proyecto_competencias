@@ -54,9 +54,9 @@ proyecto_competencias/
       components/          # Componentes UI
     package.json
     vite.config.js
-  docs/
-    asistencias.sql        # SQL de tabla asistencias
 ```
+
+Los datos de prueba y scripts SQL no viven en el proyecto. La base de datos se administra directamente en Supabase.
 
 ## Instalacion
 
@@ -134,7 +134,7 @@ El proxy de Vite redirige `/api` a `http://localhost:5000`, aunque varios servic
 
 ```powershell
 python wsgi.py
-python -m py_compile app\routes\asistencia.py
+python -m py_compile app\routes\attendance.py
 ```
 
 ### Frontend
@@ -308,11 +308,7 @@ Estados validos:
 - `ausente`
 - `tardanza`
 
-SQL relacionado:
-
-```text
-docs/asistencias.sql
-```
+La tabla `asistencias` debe existir en Supabase; los scripts SQL de prueba no se guardan en este repositorio.
 
 ## Variables y configuracion
 
@@ -367,7 +363,7 @@ Desde la raiz del proyecto:
 ```powershell
 cd backend
 .\venv\Scripts\Activate.ps1
-python -m py_compile app\routes\asistencia.py
+python -m py_compile app\routes\attendance.py
 
 cd ..\frontend
 npm run build
@@ -420,11 +416,7 @@ role = student
 
 ### No guarda asistencia
 
-Verifica que la tabla `asistencias` exista. Puedes usar el SQL de:
-
-```text
-docs/asistencias.sql
-```
+Verifica en Supabase que la tabla `asistencias` exista y que tenga las columnas esperadas por `backend/app/routes/attendance.py`.
 
 ## Estado actual
 

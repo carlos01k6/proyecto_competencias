@@ -1,13 +1,12 @@
 import React, { useState } from "react"
 import { useEstudiantes } from "../hooks/useStudents"
-import { getStudentCode } from "../utils/studentCode"
-import { Users, Plus, Trash2, Mail, Calendar, Hash } from "lucide-react"
+import { Users, Plus, Trash2, Mail, Calendar } from "lucide-react"
 
 export default function EstudiantesPage({ usuario }) {
   const [showAgregar, setShowAgregar] = useState(false)
 
   const rolUsuario = usuario?.rol?.toLowerCase()
-  const esTeacher = rolUsuario === "teacher" || rolUsuario === "docente" || rolUsuario === "admin"
+  const esTeacher = rolUsuario === "teacher"
 
   const { estudiantes, cargando, error } = useEstudiantes()
 
@@ -92,7 +91,6 @@ export default function EstudiantesPage({ usuario }) {
                 <thead>
                   <tr className="border-b border-neutral-700/50 bg-neutral-900/50">
                     <th className="px-6 py-4 text-left font-semibold text-neutral-300">Nombre</th>
-                    <th className="px-6 py-4 text-left font-semibold text-neutral-300">Código</th>
                     <th className="px-6 py-4 text-left font-semibold text-neutral-300">Email</th>
                     <th className="px-6 py-4 text-left font-semibold text-neutral-300">Fecha Matrícula</th>
                     <th className="px-6 py-4 text-right font-semibold text-neutral-300">Acciones</th>
@@ -102,12 +100,6 @@ export default function EstudiantesPage({ usuario }) {
                   {estudiantes.map((est) => (
                     <tr key={est.id || est.student_id || est.email} className="border-b border-neutral-800/50 hover:bg-neutral-900/50 transition group">
                       <td className="px-6 py-4 text-white font-semibold">{est.name || est.nombre || est.users?.name || "Sin nombre"}</td>
-                      <td className="px-6 py-4 text-primary-brand font-bold">
-                        <span className="inline-flex items-center gap-2">
-                          <Hash className="w-4 h-4" />
-                          {getStudentCode(est)}
-                        </span>
-                      </td>
                       <td className="px-6 py-4 text-neutral-400 flex items-center gap-2">
                         <Mail className="w-4 h-4" />
                         {est.email || est.users?.email || "Sin email"}

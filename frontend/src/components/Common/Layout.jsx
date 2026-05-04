@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Sidebar from './Sidebar'
-import { getStudentCode } from '../../utils/studentCode'
 import { LogOut, User, Bell, Settings, Menu, Search, X } from 'lucide-react'
 
 const SECCIONES = [
@@ -131,7 +130,7 @@ export default function Layout({ children, usuario }) {
 
   const copiarStudentId = () => {
     if (usuario?.id) {
-      navigator.clipboard.writeText(getStudentCode(usuario))
+      navigator.clipboard.writeText(usuario.id)
     }
   }
 
@@ -201,8 +200,8 @@ export default function Layout({ children, usuario }) {
           <div className="flex items-center gap-4">
             {usuario?.id && rol === 'student' && (
               <div className="hidden xl:flex items-center gap-2 rounded-lg bg-neutral-800/60 border border-neutral-700 px-3 py-2">
-                <span className="text-xs text-neutral-400">Tu código:</span>
-                <strong className="text-xs text-white max-w-[130px] truncate">{getStudentCode(usuario)}</strong>
+                <span className="text-xs text-neutral-400">Tu ID:</span>
+                <strong className="text-xs text-white max-w-[130px] truncate">{usuario.id}</strong>
                 <button onClick={copiarStudentId} className="text-xs text-primary-brand hover:text-primary-300">
                   Copiar
                 </button>

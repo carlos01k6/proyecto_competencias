@@ -3,7 +3,6 @@ from supabase import Client
 import json
 import jwt
 from ..supabase_client import get_supabase
-from ..utils.student_codes import generar_codigo_estudiante
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 supabase: Client = get_supabase()
@@ -14,7 +13,7 @@ def signup():
         data = request.get_json()
         email = data.get('email')
         password = data.get('password')
-        name = data.get('name') or data.get('nombre')
+        name = data.get('name')
         
         if not email or not password or not name:
             return jsonify({'mensaje': 'Email, contraseña y nombre son requeridos'}), 400
@@ -49,9 +48,7 @@ def signup():
         return jsonify({
             'mensaje': 'Usuario creado exitosamente',
             'user_id': usuario_id,
-            'rol': 'student',
-            'codigo_estudiante': generar_codigo_estudiante(usuario_id, email),
-            'student_code': generar_codigo_estudiante(usuario_id, email)
+            'rol': 'student'
         }), 201
         
     except Exception as e:
@@ -78,22 +75,18 @@ def login():
         
         # Obtener usuario DIRECTAMENTE de la tabla users. En algunos entornos el
         # id de Supabase Auth no coincide con public.users, pero el email si.
-        user_response = supabase.table('users').select('id, role, name, email').eq('id', usuario_id).execute()
+        user_response = supabase.table('users').select('id, role, name').eq('id', usuario_id).execute()
         if not user_response.data:
-            user_response = supabase.table('users').select('id, role, name, email').eq('email', usuario.email).execute()
+            user_response = supabase.table('users').select('id, role, name').eq('email', usuario.email).execute()
         
         if user_response.data:
             usuario_bd = user_response.data[0]
             usuario_id = usuario_bd['id']
             rol = usuario_bd['role']
-            email_usuario = usuario_bd.get('email') or usuario.email
             nombre = usuario_bd.get('name') or usuario.user_metadata.get('name', 'Usuario')
         else:
-            email_usuario = usuario.email
             nombre = usuario.user_metadata.get('name', 'Usuario')
             rol = 'student'  # Default
-
-        codigo_estudiante = generar_codigo_estudiante(usuario_id, email_usuario) if (rol or '').lower() == 'student' else None
         
         return jsonify({
             'acceso_token': response.session.access_token,
@@ -101,9 +94,7 @@ def login():
                 'id': usuario_id,
                 'email': usuario.email,
                 'name': nombre,
-                'rol': rol,
-                'codigo_estudiante': codigo_estudiante,
-                'student_code': codigo_estudiante
+                'rol': rol
             }
         }), 200
         
@@ -123,35 +114,29 @@ def get_user():
         
         user = supabase.auth.get_user(token)
         
-        user_response = supabase.table('users').select('id, role, name, email').eq('id', usuario_id).execute()
+        user_response = supabase.table('users').select('id, role, name').eq('id', usuario_id).execute()
         if not user_response.data:
-            user_response = supabase.table('users').select('id, role, name, email').eq('email', user.user.email).execute()
+            user_response = supabase.table('users').select('id, role, name').eq('email', user.user.email).execute()
         
         if user_response.data:
             usuario_bd = user_response.data[0]
             usuario_id = usuario_bd['id']
             rol = usuario_bd['role']
-            email_usuario = usuario_bd.get('email') or user.user.email
             nombre = usuario_bd.get('name') or user.user.user_metadata.get('name', 'Usuario')
         else:
             rol_response = supabase.table('user_roles').select('roles(name)').eq('user_id', usuario_id).execute()
-            email_usuario = user.user.email
             nombre = user.user.user_metadata.get('name', 'Usuario')
             if rol_response.data:
                 rol = rol_response.data[0]['roles']['name']
             else:
                 rol = 'student'
         
-        codigo_estudiante = generar_codigo_estudiante(usuario_id, email_usuario) if (rol or '').lower() == 'student' else None
-
         return jsonify({
             'usuario': {
                 'id': usuario_id,
                 'email': user.user.email,
                 'name': nombre,
-                'rol': rol,
-                'codigo_estudiante': codigo_estudiante,
-                'student_code': codigo_estudiante
+                'rol': rol
             }
         }), 200
         

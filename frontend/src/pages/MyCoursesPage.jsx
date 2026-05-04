@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useCursos } from "../hooks/useCourses"
+import { getStudentCode } from "../utils/studentCode"
 import { ArrowRight, BookOpen, Clock, Loader2, Users } from "lucide-react"
 
 export default function MisCursosPage({ usuario }) {
@@ -213,6 +214,7 @@ export default function MisCursosPage({ usuario }) {
                               <p className="text-sm font-semibold text-white">
                                 {estudiante.name || estudiante.nombre || "Estudiante"}
                               </p>
+                              <p className="text-xs font-semibold text-primary-brand">{getStudentCode(estudiante)}</p>
                               <p className="text-xs text-neutral-500 truncate">{estudiante.email || "Sin email"}</p>
                             </div>
                           ))}

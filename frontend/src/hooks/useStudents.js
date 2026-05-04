@@ -6,13 +6,14 @@ export const useEstudiantes = (cursoID) => {
   const [error, setError] = useState(null)
 
   const obtenerEstudiantes = async () => {
-    if (!cursoID) return
-    
     setCargando(true)
     try {
       const token = localStorage.getItem("acceso_token")
+      const url = cursoID
+        ? `http://localhost:5000/api/estudiantes/por-curso/${cursoID}`
+        : "http://localhost:5000/api/estudiantes"
       const response = await fetch(
-        `http://localhost:5000/api/estudiantes/por-curso/${cursoID}`,
+        url,
         {
           headers: { Authorization: `Bearer ${token}` }
         }

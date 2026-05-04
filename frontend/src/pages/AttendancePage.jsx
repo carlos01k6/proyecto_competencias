@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { BarChart3, CalendarCheck, Save, Loader2, Search } from "lucide-react"
+import { getStudentCode } from "../utils/studentCode"
 
 const API_URL = "http://localhost:5000/api/asistencia"
 
@@ -282,7 +283,8 @@ export default function AsistenciaPage({ usuario }) {
             <table className="w-full min-w-[760px]">
               <thead>
                 <tr className="border-b border-neutral-700/50 bg-neutral-900/50">
-                  <th className="px-6 py-4 text-left font-semibold text-neutral-300">StudentName</th>
+                  <th className="px-6 py-4 text-left font-semibold text-neutral-300">Código</th>
+                  <th className="px-6 py-4 text-left font-semibold text-neutral-300">Estudiante</th>
                   <th className="px-6 py-4 text-left font-semibold text-neutral-300">Email</th>
                   <th className="px-6 py-4 text-left font-semibold text-neutral-300">Estado</th>
                   <th className="px-6 py-4 text-left font-semibold text-neutral-300">Observación</th>
@@ -292,6 +294,7 @@ export default function AsistenciaPage({ usuario }) {
               <tbody>
                 {filas.map((fila) => (
                   <tr key={fila.student_id} className="border-b border-neutral-800/50 hover:bg-neutral-900/50 transition">
+                    <td className="px-6 py-4 text-primary-brand font-bold">{getStudentCode(fila)}</td>
                     <td className="px-6 py-4 text-white font-semibold">{fila.student_name}</td>
                     <td className="px-6 py-4 text-neutral-300">{fila.email || "Sin email"}</td>
                     <td className="px-6 py-4">

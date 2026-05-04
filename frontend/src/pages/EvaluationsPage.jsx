@@ -4,6 +4,7 @@ import { useCompetencias } from "../hooks/useCompetencies"
 import * as evaluacionesService from "../services/evaluations"
 import TablaEvaluaciones from "../components/Evaluations/EvaluationsTable"
 import FormularioCalificacion from "../components/Evaluations/GradeForm"
+import { getStudentCode } from "../utils/studentCode"
 import { BarChart3 } from "lucide-react"
 
 export default function EvaluacionesPage({ usuario }) {
@@ -229,7 +230,7 @@ export default function EvaluacionesPage({ usuario }) {
                 <option value="">-- Seleccionar --</option>
                 {estudiantes.map(est => (
                   <option key={est.id} value={est.id}>
-                    {est.name || est.nombre}
+                    {getStudentCode(est)} - {est.name || est.nombre}
                   </option>
                 ))}
               </select>
@@ -297,9 +298,9 @@ export default function EvaluacionesPage({ usuario }) {
         <div className="space-y-6">
           {usuario?.id && (
             <div className="rounded-lg bg-neutral-800/60 border border-neutral-700 p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-              <p className="text-neutral-300">Tu ID: <strong className="text-white">{usuario.id}</strong></p>
-              <button onClick={() => navigator.clipboard.writeText(usuario.id)} className="bg-primary-brand hover:bg-primary-600 text-white px-4 py-2 rounded-lg font-semibold">
-                Copiar ID
+              <p className="text-neutral-300">Tu código: <strong className="text-white">{getStudentCode(usuario)}</strong></p>
+              <button onClick={() => navigator.clipboard.writeText(getStudentCode(usuario))} className="bg-primary-brand hover:bg-primary-600 text-white px-4 py-2 rounded-lg font-semibold">
+                Copiar código
               </button>
             </div>
           )}

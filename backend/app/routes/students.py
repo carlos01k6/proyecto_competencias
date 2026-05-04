@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
 from ..supabase_client import get_supabase
+from ..utils.student_codes import generar_codigo_estudiante
 
 estudiantes_bp = Blueprint("estudiantes", __name__, url_prefix="/api/estudiantes")
 supabase = get_supabase()
@@ -9,18 +10,32 @@ supabase = get_supabase()
 def normalizar_estudiante(estudiante):
     user = estudiante.get("users") if isinstance(estudiante, dict) else None
     if user:
+        student_id = user.get("id") or estudiante.get("estudiante_id")
+        codigo_estudiante = generar_codigo_estudiante(student_id, user.get("email"))
         return {
             **estudiante,
-            "student_id": user.get("id") or estudiante.get("estudiante_id"),
-            "id": user.get("id") or estudiante.get("estudiante_id"),
+            "student_id": student_id,
+            "id": student_id,
+            "codigo_estudiante": codigo_estudiante,
+            "student_code": codigo_estudiante,
             "nombre": user.get("name") or user.get("nombre"),
             "name": user.get("name") or user.get("nombre"),
-            "email": user.get("email")
+            "email": user.get("email"),
+            "users": {
+                **user,
+                "codigo_estudiante": codigo_estudiante,
+                "student_code": codigo_estudiante
+            }
         }
 
+    student_id = estudiante.get("student_id") or estudiante.get("id") or estudiante.get("estudiante_id")
+    codigo_estudiante = generar_codigo_estudiante(student_id, estudiante.get("email"))
     return {
         **estudiante,
-        "student_id": estudiante.get("student_id") or estudiante.get("id") or estudiante.get("estudiante_id"),
+        "student_id": student_id,
+        "id": student_id,
+        "codigo_estudiante": codigo_estudiante,
+        "student_code": codigo_estudiante,
         "nombre": estudiante.get("nombre") or estudiante.get("name"),
         "email": estudiante.get("email")
     }

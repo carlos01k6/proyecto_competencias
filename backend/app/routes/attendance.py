@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
 from supabase import Client
 from ..supabase_client import get_supabase
+from ..utils.student_codes import generar_codigo_estudiante
 import uuid
 import jwt
 
@@ -53,9 +54,12 @@ def obtener_asistencia_fecha(fecha):
         resultado = []
         for estudiante in estudiantes_response.data or []:
             asistencia = asistencias_por_estudiante.get(estudiante["id"])
+            codigo_estudiante = generar_codigo_estudiante(estudiante.get("id"), estudiante.get("email"))
             resultado.append(
                 {
                     "student_id": estudiante["id"],
+                    "codigo_estudiante": codigo_estudiante,
+                    "student_code": codigo_estudiante,
                     "student_name": estudiante.get("name") or estudiante.get("email") or "Estudiante",
                     "email": estudiante.get("email") or "",
                     "estado": asistencia.get("estado") if asistencia else None,
@@ -107,9 +111,12 @@ def obtener_asistencia_curso(curso_id, fecha):
         resultado = []
         for estudiante in estudiantes_response.data or []:
             asistencia = asistencias_por_estudiante.get(estudiante["id"])
+            codigo_estudiante = generar_codigo_estudiante(estudiante.get("id"), estudiante.get("email"))
             resultado.append(
                 {
                     "student_id": estudiante["id"],
+                    "codigo_estudiante": codigo_estudiante,
+                    "student_code": codigo_estudiante,
                     "student_name": estudiante.get("name") or estudiante.get("email") or "Estudiante",
                     "student_email": estudiante.get("email") or "",
                     "estado": asistencia.get("estado") if asistencia else None,
@@ -206,6 +213,8 @@ def obtener_reporte_asistencia(estudiante_id):
         return jsonify(
             {
                 "student_id": estudiante_id,
+                "codigo_estudiante": generar_codigo_estudiante(estudiante_id),
+                "student_code": generar_codigo_estudiante(estudiante_id),
                 "periodo_id": periodo_id,
                 "fecha_inicio": fecha_inicio,
                 "fecha_fin": fecha_fin,

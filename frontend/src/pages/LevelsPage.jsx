@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react"
 import { Layers } from "lucide-react"
 import * as nivelesService from "../services/levels"
+import { getStudentCode } from "../utils/studentCode"
 
 export default function NivelesPage({ usuario }) {
   const [studentId, setStudentId] = useState(usuario?.id || "")
@@ -81,9 +82,9 @@ export default function NivelesPage({ usuario }) {
 
       {usuario?.id && (
         <div className="mb-6 rounded-lg bg-neutral-800/60 border border-neutral-700 p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <p className="text-neutral-300">Tu ID: <strong className="text-white">{usuario.id}</strong></p>
-          <button onClick={() => navigator.clipboard.writeText(usuario.id)} className="bg-primary-brand hover:bg-primary-600 text-white px-4 py-2 rounded-lg font-semibold">
-            Copiar ID
+          <p className="text-neutral-300">Tu código: <strong className="text-white">{getStudentCode(usuario)}</strong></p>
+          <button onClick={() => navigator.clipboard.writeText(getStudentCode(usuario))} className="bg-primary-brand hover:bg-primary-600 text-white px-4 py-2 rounded-lg font-semibold">
+            Copiar código
           </button>
         </div>
       )}

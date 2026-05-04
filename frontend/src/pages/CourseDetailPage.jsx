@@ -1,6 +1,7 @@
 import React from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useEstudiantesCurso } from "../hooks/useCourseStudents"
+import { getStudentCode } from "../utils/studentCode"
 import { BookOpen, Users, ArrowLeft, Calendar } from "lucide-react"
 
 export default function DetalleCursoPage() {
@@ -92,6 +93,7 @@ export default function DetalleCursoPage() {
                   >
                     <div>
                       <p className="text-white font-semibold">{est.name || est.nombre || "Estudiante"}</p>
+                      <p className="text-xs font-semibold text-primary-brand">{getStudentCode(est)}</p>
                       <p className="text-xs text-neutral-400">{est.email}</p>
                     </div>
                     <div className="text-right">

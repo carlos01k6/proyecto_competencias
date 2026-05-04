@@ -38,6 +38,7 @@ from .routes.roles import roles_bp
 from .routes.attendance import asistencia_bp
 from .routes.export import exportacion_bp
 from .routes.emails import correos_bp, mail
+from .routes.notificaciones import notificaciones_bp
 
 
 def create_app():
@@ -96,6 +97,7 @@ def create_app():
     app.register_blueprint(asistencia_bp)
     app.register_blueprint(exportacion_bp)
     app.register_blueprint(correos_bp)
+    app.register_blueprint(notificaciones_bp)
 
     with app.app_context():
         db.create_all()

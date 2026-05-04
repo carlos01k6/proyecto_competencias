@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
 import Sidebar from './Sidebar'
 import { LogOut, User, Bell, Settings, Menu, Search, X } from 'lucide-react'
 
@@ -35,60 +36,57 @@ const SECCIONES = [
   { nombre: 'Mi Progreso', desc: 'Ver mi progreso académico', ruta: '/progresos', roles: ['student'] },
 ]
 
+function useNotificaciones(studentId) {
+  const [notificaciones, setNotificaciones] = useState([])
+  const [mostrarModal, setMostrarModal] = useState(false)
+
+  useEffect(() => {
+    if (!studentId) {
+      setNotificaciones([])
+      return undefined
+    }
+
+    const cargar = async () => {
+      try {
+        const res = await axios.get(`/api/notificaciones/${studentId}`)
+        setNotificaciones(res.data || [])
+      } catch (error) {
+        console.error('Error al cargar notificaciones:', error)
+      }
+    }
+
+    cargar()
+    const intervalo = setInterval(cargar, 30000)
+    return () => clearInterval(intervalo)
+  }, [studentId])
+
+  const marcarLeida = async (notificacionId) => {
+    await axios.put(`/api/notificaciones/${notificacionId}/leer`)
+    setNotificaciones((actuales) => actuales.filter((n) => n.id !== notificacionId))
+  }
+
+  return {
+    notificaciones,
+    mostrarModal,
+    setMostrarModal,
+    marcarLeida,
+  }
+}
+
 export default function Layout({ children, usuario }) {
   const navigate = useNavigate()
   const [sidebarExpandido, setSidebarExpandido] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [notificacionesAbiertas, setNotificacionesAbiertas] = useState(false)
   const [configAbierta, setConfigAbierta] = useState(false)
-  const [ultimoAcceso, setUltimoAcceso] = useState(null)
-  const [accesoActual, setAccesoActual] = useState(null)
   const [busqueda, setBusqueda] = useState('')
   const [indiceSel, setIndiceSel] = useState(0)
   const refBusqueda = useRef(null)
-
-  useEffect(() => {
-    if (!usuario?.id) return
-
-    const claveUltimoAcceso = `ultimo_acceso_${usuario.id}`
-    const accesoGuardado = localStorage.getItem(claveUltimoAcceso)
-    const ahora = new Date().toISOString()
-
-    setUltimoAcceso(accesoGuardado)
-    setAccesoActual(ahora)
-    localStorage.setItem(claveUltimoAcceso, ahora)
-  }, [usuario?.id])
-
-  const formatearFecha = (fecha) => {
-    if (!fecha) return 'Primer acceso registrado'
-    return new Date(fecha).toLocaleString('es-DO', {
-      dateStyle: 'medium',
-      timeStyle: 'short'
-    })
-  }
-
-  const avisos = useMemo(() => {
-    const rol = usuario?.rol?.toLowerCase()
-
-    if (rol === 'student') {
-      return [
-        'Revisa tus actividades disponibles.',
-        'Consulta tus calificaciones y niveles de logro.'
-      ]
-    }
-
-    if (rol === 'teacher' || rol === 'docente') {
-      return [
-        'Tienes apartados listos para calificar estudiantes.',
-        'Revisa progreso del grupo, asistencia y boletines.'
-      ]
-    }
-
-    return [
-      'Puedes revisar auditoria y reportes para direccion.',
-      'Supervisa usuarios, roles y configuracion del sistema.'
-    ]
-  }, [usuario?.rol])
+  const {
+    notificaciones,
+    mostrarModal,
+    setMostrarModal,
+    marcarLeida,
+  } = useNotificaciones(usuario?.id)
 
   const rol = usuario?.rol?.toLowerCase()
   const resultados = busqueda.trim().length > 0
@@ -197,37 +195,42 @@ export default function Layout({ children, usuario }) {
             {/* Notificaciones */}
             <div className="relative hidden sm:block">
               <button
-                onClick={() => setNotificacionesAbiertas((abiertas) => !abiertas)}
+                onClick={() => setMostrarModal(!mostrarModal)}
                 className="p-2 hover:bg-neutral-800 rounded-lg transition relative group"
                 title="Notificaciones"
               >
                 <Bell className="w-5 h-5 text-neutral-400 group-hover:text-neutral-200" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-danger rounded-full animate-pulse"></span>
+                {notificaciones.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-danger text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
+                    {notificaciones.length}
+                  </span>
+                )}
               </button>
 
-              {notificacionesAbiertas && (
+              {mostrarModal && (
                 <div className="absolute right-0 mt-3 w-80 rounded-lg border border-neutral-700 bg-neutral-950 shadow-2xl shadow-black/40 overflow-hidden">
                   <div className="px-4 py-3 border-b border-neutral-800">
                     <p className="text-sm font-bold text-white">Notificaciones</p>
-                    <p className="text-xs text-neutral-500">Resumen rapido de tu sesion</p>
+                    <p className="text-xs text-neutral-500">Avisos pendientes</p>
                   </div>
 
-                  <div className="p-4 space-y-3">
-                    <div className="rounded-lg border border-neutral-800 bg-neutral-900/70 p-3">
-                      <p className="text-xs font-semibold text-neutral-400 mb-1">Ultimo acceso</p>
-                      <p className="text-sm text-white">{formatearFecha(ultimoAcceso)}</p>
-                    </div>
-
-                    <div className="rounded-lg border border-neutral-800 bg-neutral-900/70 p-3">
-                      <p className="text-xs font-semibold text-neutral-400 mb-1">Acceso actual</p>
-                      <p className="text-sm text-white">{formatearFecha(accesoActual)}</p>
-                    </div>
-
-                    {avisos.map((aviso) => (
-                      <div key={aviso} className="rounded-lg border border-primary-brand/20 bg-primary-brand/10 p-3">
-                        <p className="text-sm text-neutral-200">{aviso}</p>
-                      </div>
-                    ))}
+                  <div className="max-h-96 overflow-y-auto p-3 space-y-3">
+                    {notificaciones.length === 0 ? (
+                      <p className="py-6 text-center text-sm text-neutral-400">Sin notificaciones</p>
+                    ) : (
+                      notificaciones.map((notificacion) => (
+                        <div key={notificacion.id} className="rounded-lg border border-neutral-800 bg-neutral-900/70 p-3">
+                          <h4 className="text-sm font-bold text-white mb-1">{notificacion.titulo}</h4>
+                          <p className="text-xs text-neutral-400 mb-3">{notificacion.mensaje}</p>
+                          <button
+                            onClick={() => marcarLeida(notificacion.id)}
+                            className="bg-primary-brand hover:bg-primary-600 text-white border-0 px-3 py-1.5 rounded text-xs font-semibold transition"
+                          >
+                            Marcar como leida
+                          </button>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}

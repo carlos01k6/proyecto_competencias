@@ -1,6 +1,7 @@
 ﻿from flask import Blueprint, request, jsonify
 from supabase import Client
 from ..supabase_client import get_supabase
+from .notificaciones import crear_notificacion_estudiante
 import uuid
 
 actividades_bp = Blueprint('activities', __name__, url_prefix='/api/actividades')
@@ -16,6 +17,33 @@ def get_user_id_from_token():
     except Exception as e:
         print(f"DEBUG: Error al validar token: {str(e)}")
         return None
+
+def obtener_estudiantes_para_notificar(curso_id, docente_id):
+    try:
+        curso_ids = []
+        if curso_id:
+            curso_ids = [curso_id]
+        elif docente_id:
+            cursos_response = supabase.table('cursos').select('id').eq('docente_id', docente_id).execute()
+            curso_ids = [curso['id'] for curso in (cursos_response.data or []) if curso.get('id')]
+
+        if not curso_ids:
+            return []
+
+        query = supabase.table('estudiante_curso').select('estudiante_id')
+        if len(curso_ids) == 1:
+            estudiantes_response = query.eq('curso_id', curso_ids[0]).execute()
+        else:
+            estudiantes_response = query.in_('curso_id', curso_ids).execute()
+
+        return list({
+            item['estudiante_id']
+            for item in (estudiantes_response.data or [])
+            if item.get('estudiante_id')
+        })
+    except Exception as e:
+        print(f"ERROR OBTENER ESTUDIANTES PARA NOTIFICAR: {str(e)}")
+        return []
 
 # LISTAR TODAS LAS ACTIVIDADES
 @actividades_bp.route('', methods=['GET'])
@@ -71,7 +99,27 @@ def crear_actividad():
             'status': 'active',
             'docente_id': get_user_id_from_token()
         }
+        if data.get('curso_id'):
+            nueva_actividad['curso_id'] = data.get('curso_id')
+
         response = supabase.table('activities').insert(nueva_actividad).execute()
+        actividad_creada = response.data[0] if response.data else nueva_actividad
+
+        estudiantes = obtener_estudiantes_para_notificar(
+            data.get('curso_id'),
+            nueva_actividad.get('docente_id')
+        )
+        for estudiante_id in estudiantes:
+            try:
+                crear_notificacion_estudiante(
+                    estudiante_id=estudiante_id,
+                    titulo=f"Nueva clase: {actividad_creada.get('title')}",
+                    mensaje=actividad_creada.get('description') or '',
+                    tipo="nueva_clase"
+                )
+            except Exception as e:
+                print(f"ERROR CREAR NOTIFICACION DE ACTIVIDAD: {str(e)}")
+
         return jsonify(response.data[0]), 201
     except Exception as e:
         print(f"ERROR CREAR ACTIVIDAD: {str(e)}")

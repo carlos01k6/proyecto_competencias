@@ -2,6 +2,11 @@
 
 const API_URL = "http://localhost:5000/api/actividades"
 
+function getAuthHeader() {
+  const token = localStorage.getItem("acceso_token")
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 export async function obtenerTodasActividades() {
   const response = await axios.get(API_URL)
   return response.data || []
@@ -13,7 +18,9 @@ export async function obtenerActividadesPorResultado(resultado_id) {
 }
 
 export async function crearActividad(formData) {
-  const response = await axios.post(API_URL, formData)
+  const response = await axios.post(API_URL, formData, {
+    headers: getAuthHeader()
+  })
   return response.data[0] || response.data
 }
 

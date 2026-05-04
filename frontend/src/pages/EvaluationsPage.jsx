@@ -295,6 +295,15 @@ export default function EvaluacionesPage({ usuario }) {
       {/* VISTA ESTUDIANTE - Ver propias calificaciones */}
       {esEstudiante && (
         <div className="space-y-6">
+          {usuario?.id && (
+            <div className="rounded-lg bg-neutral-800/60 border border-neutral-700 p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <p className="text-neutral-300">Tu ID: <strong className="text-white">{usuario.id}</strong></p>
+              <button onClick={() => navigator.clipboard.writeText(usuario.id)} className="bg-primary-brand hover:bg-primary-600 text-white px-4 py-2 rounded-lg font-semibold">
+                Copiar ID
+              </button>
+            </div>
+          )}
+
           {errorMisCalificaciones && (
             <div className="bg-danger/10 border border-danger/30 rounded-lg p-4">
               <p className="text-danger font-semibold">Error: {errorMisCalificaciones}</p>

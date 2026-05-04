@@ -128,6 +128,12 @@ export default function Layout({ children, usuario }) {
     navigate('/login')
   }
 
+  const copiarStudentId = () => {
+    if (usuario?.id) {
+      navigator.clipboard.writeText(usuario.id)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950">
       {/* Header Premium */}
@@ -192,6 +198,16 @@ export default function Layout({ children, usuario }) {
 
           {/* Right - Actions */}
           <div className="flex items-center gap-4">
+            {usuario?.id && rol === 'student' && (
+              <div className="hidden xl:flex items-center gap-2 rounded-lg bg-neutral-800/60 border border-neutral-700 px-3 py-2">
+                <span className="text-xs text-neutral-400">Tu ID:</span>
+                <strong className="text-xs text-white max-w-[130px] truncate">{usuario.id}</strong>
+                <button onClick={copiarStudentId} className="text-xs text-primary-brand hover:text-primary-300">
+                  Copiar
+                </button>
+              </div>
+            )}
+
             {/* Notificaciones */}
             <div className="relative hidden sm:block">
               <button
@@ -237,6 +253,7 @@ export default function Layout({ children, usuario }) {
             </div>
 
             {/* Settings */}
+            {rol !== 'student' && (
             <div className="relative hidden sm:block">
               <button
                 onClick={() => setConfigAbierta((abierta) => !abierta)}
@@ -304,6 +321,7 @@ export default function Layout({ children, usuario }) {
                 </div>
               )}
             </div>
+            )}
 
             {/* User Profile - Premium */}
             <div className="flex items-center gap-3 pl-4 border-l border-neutral-800">

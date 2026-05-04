@@ -23,6 +23,32 @@ def get_user_id_from_token():
     except:
         return None
 
+
+def learning_outcome_exists(learning_outcome_id):
+    response = supabase.table('learning_outcomes').select('id').eq('id', learning_outcome_id).limit(1).execute()
+    return bool(response.data)
+
+
+def normalize_criterio(criterio, outcomes_cache=None):
+    outcomes_cache = outcomes_cache if outcomes_cache is not None else {}
+    learning_outcome_id = criterio.get('learning_outcome_id')
+    learning_outcome = None
+    if learning_outcome_id:
+        if learning_outcome_id not in outcomes_cache:
+            outcome_response = supabase.table('learning_outcomes').select('id, title, competency_id').eq('id', learning_outcome_id).limit(1).execute()
+            outcomes_cache[learning_outcome_id] = outcome_response.data[0] if outcome_response.data else None
+        learning_outcome = outcomes_cache.get(learning_outcome_id)
+
+    return {
+        **criterio,
+        'nombre': criterio.get('nombre') or criterio.get('name'),
+        'descripcion': criterio.get('descripcion') or criterio.get('description'),
+        'ponderacion': criterio.get('ponderacion') or criterio.get('weighting'),
+        'learning_outcome_id': learning_outcome_id,
+        'learning_outcome': learning_outcome,
+        'learning_outcome_nombre': (learning_outcome or {}).get('title')
+    }
+
 @criterios_bp.route('', methods=['GET'])
 def get_criterios():
     try:
@@ -41,14 +67,8 @@ def get_criterios():
         else:
             response = supabase.table('criteria').select('*').execute()
 
-        criterios = []
-        for criterio in response.data:
-            criterios.append({
-                **criterio,
-                'nombre': criterio.get('nombre') or criterio.get('name'),
-                'descripcion': criterio.get('descripcion') or criterio.get('description'),
-                'ponderacion': criterio.get('ponderacion') or criterio.get('weighting')
-            })
+        outcomes_cache = {}
+        criterios = [normalize_criterio(criterio, outcomes_cache) for criterio in (response.data or [])]
 
         return jsonify(criterios), 200
     except Exception as e:
@@ -59,14 +79,7 @@ def get_criterios():
 def get_criterios_by_resultado(resultado_id):
     try:
         response = supabase.table('criteria').select('*').eq('learning_outcome_id', resultado_id).execute()
-        criterios = []
-        for criterio in response.data:
-            criterios.append({
-                **criterio,
-                'nombre': criterio.get('nombre') or criterio.get('name'),
-                'descripcion': criterio.get('descripcion') or criterio.get('description'),
-                'ponderacion': criterio.get('ponderacion') or criterio.get('weighting')
-            })
+        criterios = [normalize_criterio(criterio) for criterio in (response.data or [])]
         return jsonify(criterios), 200
     except Exception as e:
         print(f"ERROR GET CRITERIOS: {str(e)}")
@@ -81,18 +94,26 @@ def create_criterio():
         
         data = request.get_json()
         
-        if not data or not data.get('name') or not data.get('learning_outcome_id'):
-            return jsonify({'error': 'name y learning_outcome_id son requeridos'}), 400
+        nombre = data.get('name') or data.get('nombre')
+        descripcion = data.get('description') or data.get('descripcion') or ''
+        ponderacion = data.get('weighting') if data.get('weighting') is not None else data.get('ponderacion')
+        learning_outcome_id = data.get('learning_outcome_id')
 
-        if not is_valid_uuid(data.get('learning_outcome_id')):
+        if not data or not nombre or not learning_outcome_id:
+            return jsonify({'error': 'nombre y learning_outcome_id son requeridos'}), 400
+
+        if not is_valid_uuid(learning_outcome_id):
             return jsonify({'error': 'learning_outcome_id debe ser un UUID valido'}), 400
+
+        if not learning_outcome_exists(learning_outcome_id):
+            return jsonify({'error': 'learning_outcome_id no existe'}), 400
         
         criterio = {
             'id': str(uuid.uuid4()),
-            'learning_outcome_id': data['learning_outcome_id'],
-            'name': data['name'],
-            'description': data.get('description', ''),
-            'weighting': data.get('weighting') if data.get('weighting') is not None else 100,
+            'learning_outcome_id': learning_outcome_id,
+            'name': nombre,
+            'description': descripcion,
+            'weighting': ponderacion if ponderacion is not None else 100,
             'requires_observation': data.get('requires_observation', False)
         }
         
@@ -101,6 +122,27 @@ def create_criterio():
         
     except Exception as e:
         print(f"ERROR CREATE CRITERIO: {str(e)}")
+        return jsonify({'mensaje': str(e)}), 400
+
+
+@criterios_bp.route('/<competencia_id>', methods=['GET'])
+def get_criterios_by_competencia(competencia_id):
+    try:
+        if not is_valid_uuid(competencia_id):
+            return jsonify({'mensaje': 'competencia_id debe ser un UUID valido'}), 400
+
+        resultados_response = supabase.table('learning_outcomes').select('id, title, competency_id').eq('competency_id', competencia_id).execute()
+        outcomes = resultados_response.data or []
+        outcome_ids = [resultado['id'] for resultado in outcomes]
+        if not outcome_ids:
+            return jsonify([]), 200
+
+        outcomes_cache = {outcome['id']: outcome for outcome in outcomes}
+        response = supabase.table('criteria').select('*').in_('learning_outcome_id', outcome_ids).execute()
+        criterios = [normalize_criterio(criterio, outcomes_cache) for criterio in (response.data or [])]
+        return jsonify(criterios), 200
+    except Exception as e:
+        print(f"ERROR GET CRITERIOS COMPETENCIA: {str(e)}")
         return jsonify({'mensaje': str(e)}), 400
 
 @criterios_bp.route('/<id>', methods=['PUT'])

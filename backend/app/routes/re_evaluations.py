@@ -6,6 +6,7 @@ from datetime import datetime
 import uuid
 
 re_evaluations_bp = Blueprint('re_evaluations', __name__, url_prefix='/api/re-evaluations')
+re_evaluations_es_bp = Blueprint('re_evaluations_es', __name__, url_prefix='/api/re-evaluaciones')
 supabase: Client = get_supabase()
 
 def is_valid_uuid(value):
@@ -88,6 +89,122 @@ def normalize_history_row(evaluation):
         'grade': evaluation.get('grade'),
         'estado': 're-evaluación' if 'Re-evaluación' in observation else 'original'
     }
+
+
+def obtener_pendientes_fallback(docente_id):
+    student_ids = []
+    cursos_response = supabase.table('cursos').select('id').eq('docente_id', docente_id).execute()
+    curso_ids = [curso['id'] for curso in (cursos_response.data or []) if curso.get('id')]
+    if curso_ids:
+        estudiantes_response = supabase.table('estudiante_curso').select('estudiante_id').in_('curso_id', curso_ids).execute()
+        student_ids = list({item['estudiante_id'] for item in (estudiantes_response.data or []) if item.get('estudiante_id')})
+
+    query = supabase.table('evaluations').select('id, student_id, criteria_id, grade').lt('grade', 70)
+    if student_ids:
+        query = query.in_('student_id', student_ids)
+    elif docente_id:
+        query = query.eq('teacher_id', docente_id)
+
+    response = query.execute()
+    pendientes = []
+    for evaluation in response.data or []:
+        context = get_criteria_context(evaluation.get('criteria_id'))
+        pendientes.append({
+            'id': evaluation.get('id'),
+            'student_id': evaluation.get('student_id'),
+            'criteria_id': evaluation.get('criteria_id'),
+            'criteria_name': context['criteria_name'],
+            'competency_name': context['competency_name'],
+            'calificacion_anterior': evaluation.get('grade'),
+            'estado': 'pendiente'
+        })
+    return pendientes
+
+
+@re_evaluations_bp.route('/<docente_id>', methods=['GET'])
+@re_evaluations_es_bp.route('/<docente_id>', methods=['GET'])
+def listar_reevaluaciones_docente(docente_id):
+    try:
+        user_id = resolve_user_id()
+        if not user_id:
+            return jsonify({'error': 'No autorizado'}), 401
+
+        try:
+            response = (
+                supabase.table('re_evaluaciones')
+                .select('*')
+                .eq('estado', 'pendiente')
+                .execute()
+            )
+            pendientes = response.data or []
+        except Exception:
+            pendientes = obtener_pendientes_fallback(docente_id)
+
+        agrupado = {}
+        for item in pendientes:
+            student_id = item.get('student_id') or item.get('estudiante_id')
+            if not student_id:
+                continue
+
+            if student_id not in agrupado:
+                agrupado[student_id] = {
+                    'estudiante_id': student_id,
+                    'student_id': student_id,
+                    'estudiante_nombre': get_student_name(student_id),
+                    'student_name': get_student_name(student_id),
+                    're_evaluaciones_pendientes': []
+                }
+
+            criteria_id = item.get('criteria_id') or item.get('criterio_id')
+            context = get_criteria_context(criteria_id) if criteria_id else {'criteria_name': item.get('criteria_name') or '', 'competency_name': item.get('competency_name') or ''}
+            agrupado[student_id]['re_evaluaciones_pendientes'].append({
+                **item,
+                'id': item.get('id'),
+                'criteria_id': criteria_id,
+                'criteria_name': item.get('criteria_name') or context['criteria_name'],
+                'competency_name': item.get('competency_name') or context['competency_name'],
+                'calificacion_anterior': item.get('calificacion_anterior') or item.get('old_grade') or item.get('grade')
+            })
+
+        return jsonify(list(agrupado.values())), 200
+    except Exception as e:
+        print(f"ERROR LISTAR RE-EVALUACIONES DOCENTE: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+@re_evaluations_bp.route('/<re_eval_id>/completar', methods=['PUT'])
+@re_evaluations_es_bp.route('/<re_eval_id>/completar', methods=['PUT'])
+def completar_reevaluacion(re_eval_id):
+    try:
+        user_id = resolve_user_id()
+        if not user_id:
+            return jsonify({'error': 'No autorizado'}), 401
+
+        data = request.get_json() or {}
+        calificacion_nueva = data.get('calificacion_nueva')
+        observacion = data.get('observacion', '')
+
+        try:
+            calificacion = float(calificacion_nueva)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'calificacion_nueva debe ser numérica'}), 400
+
+        if calificacion < 0 or calificacion > 100:
+            return jsonify({'error': 'calificacion_nueva debe estar entre 0 y 100'}), 400
+
+        actualizacion = {
+            'estado': 'completada',
+            'calificacion_nueva': calificacion,
+            'observacion': observacion,
+            'fecha_completacion': datetime.now().isoformat()
+        }
+        supabase.table('re_evaluaciones').update(actualizacion).eq('id', re_eval_id).execute()
+        return jsonify({'success': True}), 200
+    except Exception as e:
+        print(f"ERROR COMPLETAR RE-EVALUACION: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 # OBTENER EVALUACIONES SUSCEPTIBLES DE RE-EVALUACIÓN
 @re_evaluations_bp.route('/disponibles-reevaluar', methods=['GET'])

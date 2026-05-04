@@ -11,7 +11,7 @@ function getAuthHeader() {
 }
 
 export async function obtenerResultadosPorCompetencia(competencia_id) {
-  const response = await axios.get(`${API_URL}/${competencia_id}`, {
+  const response = await axios.get(`${API_URL}/competencia/${competencia_id}`, {
     headers: getAuthHeader()
   })
   return response.data || []

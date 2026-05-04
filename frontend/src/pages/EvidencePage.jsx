@@ -1,10 +1,14 @@
 import React, { useState } from "react"
 import { useEvidencias } from "../hooks/useEvidence"
 import { useActividades } from "../hooks/useActivities"
+import * as evidenciasService from "../services/evidence"
 import { FileText, Plus, Search, Trash2, Download } from "lucide-react"
 
 export default function EvidenciasPage({ usuario }) {
-  const { evidencias, cargando, agregarEvidencia, eliminarEvidencia, obtenerEvidencias } = useEvidencias()
+  const rolUsuario = usuario?.rol?.toLowerCase()
+  const puedeSubir = rolUsuario === "student"
+  const puedeRevisar = rolUsuario === "teacher" || rolUsuario === "admin" || rolUsuario === "docente"
+  const { evidencias, cargando, agregarEvidencia, eliminarEvidencia, obtenerEvidencias } = useEvidencias(null, puedeSubir ? usuario?.id : null)
   const { actividades, cargando: cargandoActividades } = useActividades()
   
   const [busqueda, setBusqueda] = useState("")
@@ -17,10 +21,6 @@ export default function EvidenciasPage({ usuario }) {
     descripcion: "",
     activity_id: ""
   })
-
-  const rolUsuario = usuario?.rol?.toLowerCase()
-  const puedeSubir = rolUsuario === "student"
-  const puedeRevisar = rolUsuario === "teacher" || rolUsuario === "admin"
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -81,6 +81,17 @@ export default function EvidenciasPage({ usuario }) {
       } catch (error) {
         alert("Error al eliminar: " + (error.response?.data?.mensaje || error.message))
       }
+    }
+  }
+
+  const handleDescargar = async (evidencia_id) => {
+    try {
+      const data = await evidenciasService.descargarEvidencia(evidencia_id)
+      if (data.file_url) {
+        window.open(data.file_url, "_blank", "noopener,noreferrer")
+      }
+    } catch (error) {
+      alert("Error al descargar: " + (error.response?.data?.error || error.message))
     }
   }
 
@@ -204,7 +215,10 @@ export default function EvidenciasPage({ usuario }) {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition">
-                          <button className="p-2 hover:bg-neutral-800 rounded-lg transition text-info">
+                          <button
+                            onClick={() => handleDescargar(ev.id)}
+                            className="p-2 hover:bg-neutral-800 rounded-lg transition text-info"
+                          >
                             <Download className="w-4 h-4" />
                           </button>
                           {puedeSubir && (

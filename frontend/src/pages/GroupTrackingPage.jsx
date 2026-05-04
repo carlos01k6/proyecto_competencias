@@ -28,6 +28,16 @@ export default function GroupTrackingPage({ usuario }) {
     cargarResumen()
   }, [usuario?.id])
 
+  const totalDistribucion = (distribucion = {}) =>
+    ["incipiente", "basico", "satisfactorio", "avanzado"].reduce((total, key) => total + Number(distribucion[key] || 0), 0)
+
+  const segmentos = [
+    { key: "incipiente", label: "incipiente", color: "bg-danger" },
+    { key: "basico", label: "básico", color: "bg-warning" },
+    { key: "satisfactorio", label: "satisfactorio", color: "bg-success" },
+    { key: "avanzado", label: "avanzado", color: "bg-primary-brand" }
+  ]
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 p-6 md:p-8">
       <div className="mb-8">
@@ -54,25 +64,43 @@ export default function GroupTrackingPage({ usuario }) {
         ) : resumen.length === 0 ? (
           <div className="py-12 text-center text-neutral-400">Sin evaluaciones del grupo</div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-neutral-900/50 border-b border-neutral-700/50">
-                  <th className="px-6 py-4 text-left font-semibold text-neutral-300">Competencia</th>
-                  <th className="px-6 py-4 text-left font-semibold text-neutral-300">Promedio</th>
-                  <th className="px-6 py-4 text-left font-semibold text-neutral-300">Total Evals</th>
-                </tr>
-              </thead>
-              <tbody>
-                {resumen.map((item, index) => (
-                  <tr key={`${item.competencia_name}-${index}`} className="border-b border-neutral-800/50 hover:bg-neutral-900/50 transition">
-                    <td className="px-6 py-4 text-white font-semibold">{item.competencia_name}</td>
-                    <td className="px-6 py-4 text-primary-brand font-bold">{item.promedio}/100</td>
-                    <td className="px-6 py-4 text-neutral-300">{item.total_evals}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="divide-y divide-neutral-800/70">
+            {resumen.map((item, index) => {
+              const distribucion = item.distribucion || {}
+              const total = totalDistribucion(distribucion)
+              return (
+                <div key={`${item.competencia_nombre || item.competencia_name}-${index}`} className="p-6">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-white">{item.competencia_nombre || item.competencia_name}</h3>
+                      <p className="text-sm text-neutral-500">{total} estudiantes evaluados</p>
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-sm">
+                      {segmentos.map((segmento) => (
+                        <span key={segmento.key} className="text-neutral-300">
+                          <strong className="text-white">{distribucion[segmento.key] || 0}</strong> {segmento.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="h-5 w-full rounded-full overflow-hidden bg-neutral-800 flex">
+                    {segmentos.map((segmento) => {
+                      const valor = Number(distribucion[segmento.key] || 0)
+                      const width = total > 0 ? `${(valor / total) * 100}%` : "0%"
+                      return (
+                        <div
+                          key={segmento.key}
+                          className={`${segmento.color} h-full`}
+                          style={{ width }}
+                          title={`${valor} ${segmento.label}`}
+                        />
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>

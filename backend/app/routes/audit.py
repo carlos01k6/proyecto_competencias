@@ -3,6 +3,7 @@ from supabase import Client
 from ..supabase_client import get_supabase
 import jwt
 from datetime import datetime
+from functools import wraps
 
 auditoria_bp = Blueprint('audits', __name__, url_prefix='/api/auditoria')
 supabase: Client = get_supabase()
@@ -16,6 +17,38 @@ def get_user_id_from_token():
         return payload.get('sub')
     except:
         return None
+
+
+def get_user_role_from_token():
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        role = (payload.get('role') or payload.get('rol') or payload.get('user_role') or '').lower()
+        if role:
+            return role
+
+        user_id = payload.get('sub')
+        if user_id:
+            user_response = supabase.table('users').select('role').eq('id', user_id).limit(1).execute()
+            if user_response.data:
+                return (user_response.data[0].get('role') or '').lower()
+    except Exception:
+        return None
+    return None
+
+
+def requiere_admin_o_docente():
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            role = get_user_role_from_token()
+            if role not in ['admin', 'docente', 'teacher']:
+                return jsonify({'error': 'No autorizado'}), 403
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 # REGISTRAR AUDITORÍA (llamada después de cada evaluación)
 @auditoria_bp.route('/registrar', methods=['POST'])
@@ -55,7 +88,9 @@ def registrar_auditoria():
         return jsonify({'error': str(e)}), 500
 
 # OBTENER LOG DE AUDITORÍA
+@auditoria_bp.route('', methods=['GET'])
 @auditoria_bp.route('/log', methods=['GET'])
+@requiere_admin_o_docente()
 def obtener_log_auditoria():
     try:
         usuario_id = get_user_id_from_token()
@@ -86,6 +121,7 @@ def obtener_log_auditoria():
 
 # OBTENER RESUMEN DE AUDITORÍA POR DOCENTE
 @auditoria_bp.route('/resumen-docente/<docente_id>', methods=['GET'])
+@requiere_admin_o_docente()
 def obtener_resumen_docente(docente_id):
     try:
         usuario_id = get_user_id_from_token()

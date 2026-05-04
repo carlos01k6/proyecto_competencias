@@ -1,6 +1,7 @@
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import { useActividades } from "../hooks/useActivities"
-import { ClipboardList, Plus, Trash2, Download } from "lucide-react"
+import * as evidenciasService from "../services/evidence"
+import { ClipboardList, Plus, Trash2, Download, Upload } from "lucide-react"
 
 export default function ActividadesPage({ usuario }) {
   const { actividades, cargando, agregarActividad, eliminarActividad, obtenerActividades } = useActividades()
@@ -8,6 +9,10 @@ export default function ActividadesPage({ usuario }) {
   const [tab, setTab] = useState("ver")
   const [cargandoCrear, setCargandoCrear] = useState(false)
   const [exitoCrear, setExitoCrear] = useState(false)
+  const [evidenciasPorActividad, setEvidenciasPorActividad] = useState({})
+  const [archivosPorActividad, setArchivosPorActividad] = useState({})
+  const [descripcionPorActividad, setDescripcionPorActividad] = useState({})
+  const [subiendoActividadId, setSubiendoActividadId] = useState(null)
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -20,6 +25,27 @@ export default function ActividadesPage({ usuario }) {
 
   const rolUsuario = usuario?.rol?.toLowerCase()
   const puedeCrear = rolUsuario === "teacher"
+  const esEstudiante = rolUsuario === "student"
+
+  useEffect(() => {
+    const cargarEvidencias = async () => {
+      if (!esEstudiante || !usuario?.id || actividades.length === 0) return
+      const entradas = await Promise.all(
+        actividades.map(async (actividad) => {
+          try {
+            const evidencias = await evidenciasService.obtenerEvidencias(actividad.id)
+            const propias = evidencias.filter((ev) => ev.student_id === usuario.id)
+            return [actividad.id, propias]
+          } catch {
+            return [actividad.id, []]
+          }
+        })
+      )
+      setEvidenciasPorActividad(Object.fromEntries(entradas))
+    }
+
+    cargarEvidencias()
+  }, [actividades, esEstudiante, usuario?.id])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -90,6 +116,48 @@ export default function ActividadesPage({ usuario }) {
     link.click()
     link.remove()
     URL.revokeObjectURL(url)
+  }
+
+  const handleSubirEvidencia = async (actividadId) => {
+    const archivo = archivosPorActividad[actividadId]
+    if (!archivo) {
+      alert("Selecciona un archivo")
+      return
+    }
+
+    setSubiendoActividadId(actividadId)
+    try {
+      const data = new FormData()
+      data.append("activity_id", actividadId)
+      data.append("student_id", usuario.id)
+      data.append("archivo", archivo)
+      data.append("nombre", archivo.name)
+      data.append("descripcion", descripcionPorActividad[actividadId] || "")
+
+      await evidenciasService.crearEvidencia(data)
+      const evidencias = await evidenciasService.obtenerEvidencias(actividadId)
+      setEvidenciasPorActividad({
+        ...evidenciasPorActividad,
+        [actividadId]: evidencias.filter((ev) => ev.student_id === usuario.id)
+      })
+      setArchivosPorActividad({ ...archivosPorActividad, [actividadId]: null })
+      setDescripcionPorActividad({ ...descripcionPorActividad, [actividadId]: "" })
+    } catch (error) {
+      alert("Error al subir evidencia: " + (error.response?.data?.error || error.response?.data?.mensaje || error.message))
+    } finally {
+      setSubiendoActividadId(null)
+    }
+  }
+
+  const handleDescargarEvidencia = async (evidenciaId) => {
+    try {
+      const data = await evidenciasService.descargarEvidencia(evidenciaId)
+      if (data.file_url) {
+        window.open(data.file_url, "_blank", "noopener,noreferrer")
+      }
+    } catch (error) {
+      alert("Error al descargar evidencia: " + (error.response?.data?.error || error.message))
+    }
   }
 
   return (
@@ -190,13 +258,66 @@ export default function ActividadesPage({ usuario }) {
                   )}
 
                   {!puedeCrear && (
-                    <button
-                      onClick={() => handleDescargar(actividad)}
-                      className="w-full bg-neutral-700 hover:bg-neutral-600 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition"
-                    >
-                      <Download className="w-4 h-4" />
-                      Descargar
-                    </button>
+                    <div className="space-y-4">
+                      <button
+                        onClick={() => handleDescargar(actividad)}
+                        className="w-full bg-neutral-700 hover:bg-neutral-600 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition"
+                      >
+                        <Download className="w-4 h-4" />
+                        Descargar
+                      </button>
+
+                      {esEstudiante && (
+                        <div className="border-t border-neutral-700 pt-4 space-y-3">
+                          <h4 className="text-sm font-bold text-white">Mis Evidencias para esta Actividad</h4>
+                          <input
+                            type="file"
+                            onChange={(e) => setArchivosPorActividad({
+                              ...archivosPorActividad,
+                              [actividad.id]: e.target.files[0]
+                            })}
+                            className="block w-full text-xs text-neutral-300 file:mr-3 file:rounded file:border-0 file:bg-primary-brand file:px-3 file:py-2 file:text-white"
+                          />
+                          <textarea
+                            value={descripcionPorActividad[actividad.id] || ""}
+                            onChange={(e) => setDescripcionPorActividad({
+                              ...descripcionPorActividad,
+                              [actividad.id]: e.target.value
+                            })}
+                            placeholder="Descripción de la evidencia"
+                            rows="2"
+                            className="w-full bg-neutral-800/50 border border-neutral-700 text-white rounded-lg px-3 py-2 text-sm placeholder-neutral-500 focus:outline-none focus:border-primary-brand"
+                          />
+                          <button
+                            onClick={() => handleSubirEvidencia(actividad.id)}
+                            disabled={subiendoActividadId === actividad.id}
+                            className="w-full bg-primary-brand hover:bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition disabled:opacity-50"
+                          >
+                            <Upload className="w-4 h-4" />
+                            {subiendoActividadId === actividad.id ? "Subiendo..." : "Subir evidencia"}
+                          </button>
+
+                          {(evidenciasPorActividad[actividad.id] || []).length === 0 ? (
+                            <p className="text-xs text-neutral-500">Aún no has subido evidencias.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {(evidenciasPorActividad[actividad.id] || []).map((ev) => (
+                                <div key={ev.id} className="flex items-center justify-between gap-2 rounded-lg bg-neutral-800/60 p-2">
+                                  <span className="text-xs text-neutral-300 truncate">{ev.file_url || "Evidencia"}</span>
+                                  <button
+                                    onClick={() => handleDescargarEvidencia(ev.id)}
+                                    className="text-primary-brand hover:text-primary-300"
+                                    title="Descargar evidencia"
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               ))}

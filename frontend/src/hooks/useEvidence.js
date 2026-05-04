@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import * as evidenciasService from "../services/evidence"
 
-export function useEvidencias(actividad_id) {
+export function useEvidencias(actividad_id, studentId) {
   const [evidencias, setEvidencias] = useState([])
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState(null)
@@ -9,7 +9,9 @@ export function useEvidencias(actividad_id) {
   const obtenerEvidencias = async () => {
     setCargando(true)
     try {
-      const data = await evidenciasService.obtenerEvidencias(actividad_id)
+      const data = studentId
+        ? await evidenciasService.obtenerEvidenciasEstudiante(studentId)
+        : await evidenciasService.obtenerEvidencias(actividad_id)
       setEvidencias(data)
       setError(null)
     } catch (err) {
@@ -40,7 +42,7 @@ export function useEvidencias(actividad_id) {
 
   useEffect(() => {
     obtenerEvidencias()
-  }, [actividad_id])
+  }, [actividad_id, studentId])
 
   return {
     evidencias,

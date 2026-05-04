@@ -26,6 +26,11 @@ def obtener_nivel(grade):
         return 'Básico'
     return 'Incipiente'
 
+
+def nivel_key(grade):
+    nivel = obtener_nivel(grade).lower()
+    return nivel.replace('á', 'a')
+
 def obtener_estudiantes_docente(docente_id):
     cursos_response = supabase.table('cursos').select('id').eq('docente_id', docente_id).execute()
     curso_ids = [curso['id'] for curso in (cursos_response.data or [])]
@@ -80,26 +85,53 @@ def obtener_resumen_docente(docente_id):
             if not criterio_ids:
                 continue
 
-            query = supabase.table('evaluations').select('grade').in_('criteria_id', criterio_ids)
+            query = (
+                supabase.table('evaluations')
+                .select('student_id, criteria_id, grade, grading_date, created_at')
+                .in_('criteria_id', criterio_ids)
+            )
             if student_ids:
                 query = query.in_('student_id', student_ids)
             else:
                 query = query.eq('teacher_id', docente_id)
 
             evaluations_response = query.execute()
-            grades = [
-                float(evaluation['grade'])
-                for evaluation in (evaluations_response.data or [])
-                if evaluation.get('grade') is not None
-            ]
+            ultimas_por_estudiante = {}
+            for evaluation in (evaluations_response.data or []):
+                student_id = evaluation.get('student_id')
+                grade = evaluation.get('grade')
+                if not student_id or grade is None:
+                    continue
+
+                fecha = evaluation.get('grading_date') or evaluation.get('created_at') or ''
+                actual = ultimas_por_estudiante.get(student_id)
+                if not actual or fecha >= (actual.get('grading_date') or actual.get('created_at') or ''):
+                    ultimas_por_estudiante[student_id] = evaluation
+
+            distribucion = {
+                'incipiente': 0,
+                'basico': 0,
+                'satisfactorio': 0,
+                'avanzado': 0
+            }
+
+            grades = []
+            for evaluation in ultimas_por_estudiante.values():
+                grade = float(evaluation['grade'])
+                grades.append(grade)
+                distribucion[nivel_key(grade)] += 1
 
             if not grades:
                 continue
 
             resumen.append({
+                'competencia_id': competencia.get('id'),
+                'competencia_nombre': competencia.get('name') or competencia['id'],
                 'competencia_name': competencia.get('name') or competencia['id'],
+                'distribucion': distribucion,
                 'promedio': round(sum(grades) / len(grades), 2),
-                'total_evals': len(grades)
+                'total_evals': len(grades),
+                'total_estudiantes': len(grades)
             })
 
         return jsonify(resumen), 200

@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from supabase import Client
 from ..supabase_client import get_supabase
 import uuid
+import math
 
 evaluaciones_bp = Blueprint('evaluations', __name__, url_prefix='/api/evaluaciones')
 supabase: Client = get_supabase()
@@ -17,9 +18,13 @@ def listar_evaluaciones_criterio(criterio_id):
         return jsonify({'error': str(e)}), 500
 
 # LISTAR TODAS LAS EVALUACIONES DE UN ESTUDIANTE
+@evaluaciones_bp.route('/<estudiante_id>', methods=['GET'])
 @evaluaciones_bp.route('/estudiante/<estudiante_id>', methods=['GET'])
 def listar_calificaciones_estudiante(estudiante_id):
     try:
+        if not estudiante_id or str(estudiante_id) == 'NaN':
+            return jsonify({'error': 'student_id invalido'}), 400
+
         evaluations_response = (
             supabase.table('evaluations')
             .select('*')
@@ -142,11 +147,17 @@ def actualizar_evaluacion(evaluacion_id):
     try:
         data = request.get_json()
         
-        calificacion = data.get('grade')
-        if calificacion is not None:
+        calificacion = data.get('grade') if data.get('grade') is not None else data.get('calificacion')
+        if calificacion is None:
+            return jsonify({'error': 'calificacion es requerida'}), 400
+
+        try:
             calificacion = float(calificacion)
-            if calificacion < 0 or calificacion > 100:
-                return jsonify({'error': 'La calificación debe estar entre 0 y 100'}), 400
+        except (TypeError, ValueError):
+            return jsonify({'error': 'calificacion debe ser numerica'}), 400
+
+        if math.isnan(calificacion) or calificacion < 0 or calificacion > 100:
+            return jsonify({'error': 'La calificación debe estar entre 0 y 100'}), 400
         
         actualizacion = {
             'grade': calificacion,
@@ -161,7 +172,10 @@ def actualizar_evaluacion(evaluacion_id):
             evaluacion = response.data[0]
             actualizar_promedio_resultado(evaluacion.get('student_id'), data.get('learning_outcome_id'))
         
-        return jsonify(response.data[0]), 200
+        if not response.data:
+            return jsonify({'error': 'Evaluacion no encontrada'}), 404
+
+        return jsonify({'success': True, **response.data[0]}), 200
     except Exception as e:
         print(f"ERROR ACTUALIZAR EVALUACIÓN: {str(e)}")
         return jsonify({'error': str(e)}), 500

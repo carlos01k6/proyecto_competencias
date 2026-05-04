@@ -1,11 +1,14 @@
 import React, { useState } from "react"
 import { useCriterios } from "../hooks/useCriteria"
 import { useResultados } from "../hooks/useOutcomes"
+import { useCompetencias } from "../hooks/useCompetencies"
 import { Target, Plus, Search, Trash2, Edit } from "lucide-react"
 
 export default function CriteriosPage({ usuario }) {
   const { criterios, cargando, agregarCriterio, eliminarCriterio, obtenerCriterios } = useCriterios()
-  const { resultados, cargando: cargandoResultados } = useResultados()
+  const [competenciaSeleccionada, setCompetenciaSeleccionada] = useState("")
+  const { competencias, loading: cargandoCompetencias } = useCompetencias()
+  const { resultados, cargando: cargandoResultados } = useResultados(competenciaSeleccionada)
   
   const [busqueda, setBusqueda] = useState("")
   const [tab, setTab] = useState("ver")
@@ -19,7 +22,7 @@ export default function CriteriosPage({ usuario }) {
   })
 
   const rolUsuario = usuario?.rol?.toLowerCase()
-  const puedeCrear = rolUsuario === "admin" || rolUsuario === "teacher"
+  const puedeCrear = rolUsuario === "admin" || rolUsuario === "teacher" || rolUsuario === "docente"
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -219,16 +222,40 @@ export default function CriteriosPage({ usuario }) {
           <form onSubmit={handleCrear} className="space-y-5">
             <div>
               <label className="block text-sm font-semibold text-white mb-2">
+                Competencia *
+              </label>
+              <select
+                value={competenciaSeleccionada}
+                onChange={(e) => {
+                  setCompetenciaSeleccionada(e.target.value)
+                  setFormData({ ...formData, learning_outcome_id: "" })
+                }}
+                disabled={cargandoCrear || cargandoCompetencias}
+                className="w-full bg-neutral-800/50 border border-neutral-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-primary-brand focus:ring-2 focus:ring-primary-brand/20 transition disabled:opacity-50"
+              >
+                <option value="">{cargandoCompetencias ? "Cargando competencias..." : "Selecciona una competencia"}</option>
+                {(competencias || []).map((competencia) => (
+                  <option key={competencia.id} value={competencia.id}>
+                    {competencia.nombre || competencia.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-white mb-2">
                 Resultado de Aprendizaje *
               </label>
               <select
                 name="learning_outcome_id"
                 value={formData.learning_outcome_id}
                 onChange={handleChange}
-                disabled={cargandoCrear || cargandoResultados}
+                disabled={cargandoCrear || cargandoResultados || !competenciaSeleccionada}
                 className="w-full bg-neutral-800/50 border border-neutral-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-primary-brand focus:ring-2 focus:ring-primary-brand/20 transition disabled:opacity-50"
               >
-                <option value="">{cargandoResultados ? "Cargando resultados..." : "Selecciona un resultado"}</option>
+                <option value="">
+                  {!competenciaSeleccionada ? "Primero selecciona una competencia" : cargandoResultados ? "Cargando resultados..." : "Selecciona un resultado"}
+                </option>
                 {resultados.map((resultado) => (
                   <option key={resultado.id} value={resultado.id}>
                     {resultado.title || resultado.titulo || resultado.name || resultado.nombre || resultado.id}

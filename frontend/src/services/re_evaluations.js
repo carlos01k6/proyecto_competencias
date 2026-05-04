@@ -40,6 +40,20 @@ export async function obtenerDisponiblesReevaluar() {
   return response.data || {}
 }
 
+export async function obtenerReevaluacionesDocente(docente_id) {
+  const response = await axios.get(`${API_URL}/${docente_id}`, {
+    headers: getAuthHeader()
+  })
+  return response.data || []
+}
+
+export async function completarReevaluacion(re_eval_id, datos) {
+  const response = await axios.put(`${API_URL}/${re_eval_id}/completar`, datos, {
+    headers: getAuthHeader()
+  })
+  return response.data || {}
+}
+
 export async function compararEvaluaciones(evaluation_id) {
   const response = await axios.get(`${API_URL}/comparar/${evaluation_id}`, {
     headers: getAuthHeader()

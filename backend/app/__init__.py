@@ -1,7 +1,8 @@
 import os
+from functools import wraps
 
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 
@@ -25,7 +26,7 @@ from .routes.bulletin import boletin_bp
 from .routes.improvement_plans import improvement_plans_bp
 from .routes.group_tracking import group_tracking_bp
 from .routes.academic_periods import academic_periods_bp
-from .routes.re_evaluations import re_evaluations_bp
+from .routes.re_evaluations import re_evaluations_bp, re_evaluations_es_bp
 from .routes.templates import plantillas_bp
 from .routes.rubrics import rubricas_bp
 from .routes.tracking import seguimiento_bp
@@ -39,6 +40,30 @@ from .routes.attendance import asistencia_bp
 from .routes.export import exportacion_bp
 from .routes.emails import correos_bp, mail
 from .routes.notificaciones import notificaciones_bp
+
+
+def get_user_role_from_token():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    if not token:
+        return None
+    try:
+        import jwt
+        payload = jwt.decode(token, options={"verify_signature": False})
+        return (payload.get("role") or payload.get("rol") or payload.get("user_role") or "").lower()
+    except Exception:
+        return None
+
+
+def requiere_admin_o_docente():
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            role = get_user_role_from_token()
+            if role not in ["admin", "docente", "teacher"]:
+                return jsonify({"error": "No autorizado"}), 403
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 
 def create_app():
@@ -85,6 +110,7 @@ def create_app():
     app.register_blueprint(group_tracking_bp)
     app.register_blueprint(academic_periods_bp)
     app.register_blueprint(re_evaluations_bp)
+    app.register_blueprint(re_evaluations_es_bp)
     app.register_blueprint(plantillas_bp)
     app.register_blueprint(rubricas_bp)
     app.register_blueprint(seguimiento_bp)

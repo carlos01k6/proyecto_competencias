@@ -1,20 +1,14 @@
-import React, { useEffect, useState } from "react"
+import React, { useState } from "react"
 import { Layers } from "lucide-react"
 import * as nivelesService from "../services/levels"
 import { getStudentCode } from "../utils/studentCode"
 
 export default function NivelesPage({ usuario }) {
-  const [studentId, setStudentId] = useState(usuario?.id || "")
+  const [studentId, setStudentId] = useState("")
   const [niveles, setNiveles] = useState([])
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState(null)
   const [consultado, setConsultado] = useState(false)
-
-  useEffect(() => {
-    if (usuario?.id && !studentId) {
-      setStudentId(usuario.id)
-    }
-  }, [usuario?.id, studentId])
 
   const getNivelColor = (color) => {
     const colores = {

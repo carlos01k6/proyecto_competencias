@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useMemo, useState } from "react"
 import { useEvidencias } from "../hooks/useEvidence"
 import { useActividades } from "../hooks/useActivities"
 import * as evidenciasService from "../services/evidence"
@@ -21,6 +21,21 @@ export default function EvidenciasPage({ usuario }) {
     descripcion: "",
     activity_id: ""
   })
+
+  const nombresActividades = useMemo(() => {
+    return actividades.reduce((mapa, actividad) => {
+      mapa[actividad.id] = actividad.title || actividad.name || actividad.nombre || actividad.id
+      return mapa
+    }, {})
+  }, [actividades])
+
+  const obtenerNombreActividad = (evidencia) => {
+    return evidencia.activity_name ||
+      evidencia.actividad_nombre ||
+      nombresActividades[evidencia.activity_id] ||
+      evidencia.activity_id ||
+      "Sin actividad"
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -97,7 +112,8 @@ export default function EvidenciasPage({ usuario }) {
 
   const filtrados = evidencias.filter(e =>
     e.file_url?.toLowerCase().includes(busqueda.toLowerCase()) ||
-    e.status?.toLowerCase().includes(busqueda.toLowerCase())
+    e.status?.toLowerCase().includes(busqueda.toLowerCase()) ||
+    obtenerNombreActividad(e).toLowerCase().includes(busqueda.toLowerCase())
   )
 
   return (
@@ -198,7 +214,7 @@ export default function EvidenciasPage({ usuario }) {
                   {filtrados.map((ev) => (
                     <tr key={ev.id} className="border-b border-neutral-800/50 hover:bg-neutral-900/50 transition group">
                       <td className="px-6 py-4 text-white font-semibold">{ev.file_url || "Sin archivo"}</td>
-                      <td className="px-6 py-4 text-neutral-400 text-sm">{ev.activity_id}</td>
+                      <td className="px-6 py-4 text-neutral-300 text-sm font-medium">{obtenerNombreActividad(ev)}</td>
                       <td className="px-6 py-4 text-neutral-400 text-sm">
                         {ev.delivery_date || ev.send_date ? new Date(ev.delivery_date || ev.send_date).toLocaleDateString("es-ES") : "N/A"}
                       </td>

@@ -139,6 +139,8 @@ def listar_reevaluaciones_docente(docente_id):
             pendientes = response.data or []
         except Exception:
             pendientes = obtener_pendientes_fallback(docente_id)
+        if not pendientes:
+            pendientes = obtener_pendientes_fallback(docente_id)
 
         agrupado = {}
         for item in pendientes:

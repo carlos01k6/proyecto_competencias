@@ -15,3 +15,61 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+body.theme-light {
+  background: #f8fafc;
+  color: #111827;
+}
+
+body.theme-light [class*="from-neutral-950"] {
+  --tw-gradient-from: #f8fafc var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(248 250 252 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+body.theme-light [class*="via-neutral-900"] {
+  --tw-gradient-to: rgb(241 245 249 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), #f1f5f9 var(--tw-gradient-via-position), var(--tw-gradient-to);
+}
+
+body.theme-light [class*="to-neutral-950"],
+body.theme-light [class*="to-neutral-900"] {
+  --tw-gradient-to: #e2e8f0 var(--tw-gradient-to-position);
+}
+
+body.theme-light [class*="from-neutral-800"],
+body.theme-light [class*="bg-neutral-950"],
+body.theme-light [class*="bg-neutral-900"],
+body.theme-light [class*="bg-neutral-800"] {
+  background-color: rgb(255 255 255 / 0.88);
+}
+
+body.theme-light [class*="border-neutral-800"],
+body.theme-light [class*="border-neutral-700"] {
+  border-color: rgb(203 213 225 / 0.9);
+}
+
+body.theme-light .text-white {
+  color: #111827;
+}
+
+body.theme-light [class*="text-neutral-500"],
+body.theme-light [class*="text-neutral-400"],
+body.theme-light [class*="text-neutral-300"] {
+  color: #475569;
+}
+
+body.theme-light input,
+body.theme-light select,
+body.theme-light textarea {
+  color: #111827;
+  background-color: rgb(255 255 255 / 0.94);
+}
+
+body.theme-light button[class*="from-primary"],
+body.theme-light button[class*="bg-primary"],
+body.theme-light button[class*="bg-danger"],
+body.theme-light button[class*="bg-emerald"],
+body.theme-light a[class*="from-primary"] {
+  color: #ffffff;
+}

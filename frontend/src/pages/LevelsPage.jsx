@@ -4,16 +4,43 @@ import * as nivelesService from "../services/levels"
 
 export default function NivelesPage({ usuario }) {
   const [studentId, setStudentId] = useState(usuario?.id || "")
+  const [estudiantes, setEstudiantes] = useState([])
+  const [cargandoEstudiantes, setCargandoEstudiantes] = useState(false)
   const [niveles, setNiveles] = useState([])
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState(null)
   const [consultado, setConsultado] = useState(false)
+  const rolUsuario = usuario?.rol?.toLowerCase()
+  const puedeSeleccionarEstudiante = rolUsuario === "teacher" || rolUsuario === "docente" || rolUsuario === "admin"
 
   useEffect(() => {
     if (usuario?.id && !studentId) {
       setStudentId(usuario.id)
     }
   }, [usuario?.id, studentId])
+
+  useEffect(() => {
+    const cargarEstudiantes = async () => {
+      if (!puedeSeleccionarEstudiante) return
+
+      setCargandoEstudiantes(true)
+      try {
+        const token = localStorage.getItem("acceso_token")
+        const response = await fetch("http://localhost:5000/api/estudiantes", {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        const data = await response.json()
+        setEstudiantes(Array.isArray(data) ? data : [])
+      } catch (err) {
+        setEstudiantes([])
+        setError(err.message)
+      } finally {
+        setCargandoEstudiantes(false)
+      }
+    }
+
+    cargarEstudiantes()
+  }, [puedeSeleccionarEstudiante])
 
   const getNivelColor = (color) => {
     const colores = {
@@ -89,18 +116,36 @@ export default function NivelesPage({ usuario }) {
       )}
 
       <div className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl p-6 mb-6">
-        <label className="block text-sm font-semibold text-white mb-3">student_id</label>
+        <label className="block text-sm font-semibold text-white mb-3">
+          {puedeSeleccionarEstudiante ? "Estudiante" : "student_id"}
+        </label>
         <div className="flex flex-col md:flex-row gap-3">
-          <input
-            type="text"
-            value={studentId}
-            onChange={(e) => setStudentId(e.target.value)}
-            placeholder="Ej: uuid-del-estudiante"
-            className="flex-1 bg-neutral-800/50 border border-neutral-700 text-white rounded-lg px-4 py-3 placeholder-neutral-500 focus:outline-none focus:border-primary-brand focus:ring-2 focus:ring-primary-brand/20 transition"
-          />
+          {puedeSeleccionarEstudiante ? (
+            <select
+              value={studentId}
+              onChange={(e) => setStudentId(e.target.value)}
+              disabled={cargandoEstudiantes}
+              className="flex-1 bg-neutral-800/50 border border-neutral-700 text-white rounded-lg px-4 py-3 placeholder-neutral-500 focus:outline-none focus:border-primary-brand focus:ring-2 focus:ring-primary-brand/20 transition disabled:opacity-50"
+            >
+              <option value="">{cargandoEstudiantes ? "Cargando estudiantes..." : "Selecciona un estudiante"}</option>
+              {estudiantes.map((estudiante) => (
+                <option key={estudiante.id} value={estudiante.id}>
+                  {(estudiante.name || estudiante.nombre || estudiante.email || "Estudiante")} - {estudiante.id}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={studentId}
+              onChange={(e) => setStudentId(e.target.value)}
+              placeholder="Ej: uuid-del-estudiante"
+              className="flex-1 bg-neutral-800/50 border border-neutral-700 text-white rounded-lg px-4 py-3 placeholder-neutral-500 focus:outline-none focus:border-primary-brand focus:ring-2 focus:ring-primary-brand/20 transition"
+            />
+          )}
           <button
             onClick={handleCargar}
-            disabled={cargando}
+            disabled={cargando || cargandoEstudiantes}
             className="bg-primary-brand hover:bg-primary-600 text-white px-6 py-3 rounded-lg font-semibold transition disabled:opacity-50"
           >
             {cargando ? "Cargando..." : "Cargar"}

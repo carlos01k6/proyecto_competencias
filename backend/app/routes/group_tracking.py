@@ -46,6 +46,18 @@ def obtener_estudiantes_docente(docente_id):
     )
     return list({item['estudiante_id'] for item in (estudiantes_response.data or []) if item.get('estudiante_id')})
 
+
+def obtener_nombres_estudiantes(student_ids):
+    if not student_ids:
+        return {}
+
+    response = supabase.table('users').select('id, name, email').in_('id', student_ids).execute()
+    return {
+        user['id']: user.get('name') or user.get('email') or user['id']
+        for user in (response.data or [])
+        if user.get('id')
+    }
+
 # OBTENER RESUMEN DEL GRUPO DE UN DOCENTE POR COMPETENCIA
 @group_tracking_bp.route('/resumen/<docente_id>', methods=['GET'])
 def obtener_resumen_docente(docente_id):
@@ -55,6 +67,7 @@ def obtener_resumen_docente(docente_id):
             return jsonify({'error': 'No autorizado'}), 401
 
         student_ids = obtener_estudiantes_docente(docente_id)
+        nombres_estudiantes = obtener_nombres_estudiantes(student_ids)
 
         competencias_response = supabase.table('competencies').select('id, name').eq('teacher_id', docente_id).execute()
         competencias = competencias_response.data or []
@@ -116,10 +129,19 @@ def obtener_resumen_docente(docente_id):
             }
 
             grades = []
+            estudiantes = []
             for evaluation in ultimas_por_estudiante.values():
                 grade = float(evaluation['grade'])
                 grades.append(grade)
                 distribucion[nivel_key(grade)] += 1
+                estudiantes.append({
+                    'student_id': evaluation.get('student_id'),
+                    'student_name': nombres_estudiantes.get(evaluation.get('student_id'), evaluation.get('student_id')),
+                    'grade': round(grade, 2),
+                    'nivel': obtener_nivel(grade),
+                    'criteria_id': evaluation.get('criteria_id'),
+                    'fecha': evaluation.get('grading_date') or evaluation.get('created_at')
+                })
 
             if not grades:
                 continue
@@ -131,7 +153,9 @@ def obtener_resumen_docente(docente_id):
                 'distribucion': distribucion,
                 'promedio': round(sum(grades) / len(grades), 2),
                 'total_evals': len(grades),
-                'total_estudiantes': len(grades)
+                'total_estudiantes': len(grades),
+                'total_estudiantes_curso': len(student_ids),
+                'estudiantes': sorted(estudiantes, key=lambda item: (item.get('student_name') or '').lower())
             })
 
         return jsonify(resumen), 200

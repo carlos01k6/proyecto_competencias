@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react"
 import { useEvidencias } from "../hooks/useEvidence"
 import { useActividades } from "../hooks/useActivities"
 import * as evidenciasService from "../services/evidence"
-import { FileText, Plus, Search, Trash2, Download } from "lucide-react"
+import { FileText, Search, Trash2, Download } from "lucide-react"
 
 export default function EvidenciasPage({ usuario }) {
   const rolUsuario = usuario?.rol?.toLowerCase()
@@ -132,19 +132,11 @@ export default function EvidenciasPage({ usuario }) {
               </p>
             </div>
           </div>
-          {puedeSubir && (
-            <button
-              onClick={() => setTab("subir")}
-              className="bg-gradient-to-r from-primary-brand to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition"
-            >
-              <Plus className="w-5 h-5" />
-              Subir Evidencia
-            </button>
-          )}
         </div>
       </div>
 
       {/* Tabs */}
+      {!puedeSubir && (
       <div className="flex gap-2 mb-6 border-b border-neutral-700">
         <button
           onClick={() => setTab("ver")}
@@ -156,19 +148,8 @@ export default function EvidenciasPage({ usuario }) {
         >
           Ver Evidencias
         </button>
-        {puedeSubir && (
-          <button
-            onClick={() => setTab("subir")}
-            className={`px-6 py-3 font-semibold border-b-2 transition ${
-              tab === "subir"
-                ? "border-primary-brand text-primary-brand"
-                : "border-transparent text-neutral-400 hover:text-neutral-200"
-            }`}
-          >
-            Subir Nueva
-          </button>
-        )}
       </div>
+      )}
 
       {/* VER EVIDENCIAS */}
       {tab === "ver" && (
@@ -257,7 +238,7 @@ export default function EvidenciasPage({ usuario }) {
       )}
 
       {/* SUBIR EVIDENCIA */}
-      {tab === "subir" && puedeSubir && (
+      {tab === "subir" && puedeRevisar && (
         <div className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl p-8 max-w-2xl">
           <h2 className="text-2xl font-bold text-white mb-6">Subir Nueva Evidencia</h2>
 

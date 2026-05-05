@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import Sidebar from './Sidebar'
-import { LogOut, User, Bell, Settings, Menu, Search, X } from 'lucide-react'
+import { LogOut, Moon, Sun, User, Bell, Settings, Menu, Search, X } from 'lucide-react'
 
 const SECCIONES = [
   { nombre: 'Dashboard', desc: 'Panel principal', ruta: '/', roles: ['admin', 'teacher', 'docente', 'student'] },
@@ -78,6 +78,7 @@ export default function Layout({ children, usuario }) {
   const [sidebarExpandido, setSidebarExpandido] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [configAbierta, setConfigAbierta] = useState(false)
+  const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'dark')
   const [busqueda, setBusqueda] = useState('')
   const [indiceSel, setIndiceSel] = useState(0)
   const refBusqueda = useRef(null)
@@ -111,6 +112,11 @@ export default function Layout({ children, usuario }) {
   }
 
   useEffect(() => { setIndiceSel(0) }, [busqueda])
+
+  useEffect(() => {
+    document.body.classList.toggle('theme-light', theme === 'light')
+    localStorage.setItem('theme', theme)
+  }, [theme])
 
   useEffect(() => {
     const handler = (e) => {
@@ -251,6 +257,17 @@ export default function Layout({ children, usuario }) {
                 </div>
               )}
             </div>
+
+            {/* Settings */}
+            <button
+              onClick={() => setTheme((actual) => actual === 'light' ? 'dark' : 'light')}
+              className="p-2 hover:bg-neutral-800 rounded-lg transition"
+              title={theme === 'light' ? 'Modo oscuro' : 'Modo claro'}
+            >
+              {theme === 'light'
+                ? <Moon className="w-5 h-5 text-neutral-400 hover:text-neutral-200" />
+                : <Sun className="w-5 h-5 text-neutral-400 hover:text-neutral-200" />}
+            </button>
 
             {/* Settings */}
             {rol !== 'student' && (

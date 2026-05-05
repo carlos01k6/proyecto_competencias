@@ -94,15 +94,23 @@ def cargar_periodo(periodo_id):
 def obtener_evaluaciones_por_criterios(criteria_ids, student_id=None):
     if not criteria_ids:
         return []
-    query = supabase.table("evaluations").select("criteria_id, student_id, grade").in_("criteria_id", criteria_ids)
+    query = supabase.table("evaluations").select("criteria_id, student_id, grade, grading_date, created_at").in_("criteria_id", criteria_ids)
     if student_id:
         query = query.eq("student_id", student_id)
     response = query.execute()
-    return [
+    evaluaciones = [
         evaluation
         for evaluation in response.data or []
         if evaluation.get("grade") is not None
     ]
+    ultimas = {}
+    for evaluation in evaluaciones:
+        key = (evaluation.get("student_id"), evaluation.get("criteria_id"))
+        fecha = evaluation.get("grading_date") or evaluation.get("created_at") or ""
+        actual = ultimas.get(key)
+        if not actual or fecha >= (actual.get("grading_date") or actual.get("created_at") or ""):
+            ultimas[key] = evaluation
+    return list(ultimas.values())
 
 
 def obtener_datos_reporte(tipo, periodo_id=None):

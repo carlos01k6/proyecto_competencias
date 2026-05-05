@@ -188,6 +188,7 @@ export default function EvidenciasPage({ usuario }) {
                     <th className="px-6 py-4 text-left font-semibold text-neutral-300">Actividad</th>
                     <th className="px-6 py-4 text-left font-semibold text-neutral-300">Fecha</th>
                     <th className="px-6 py-4 text-left font-semibold text-neutral-300">Estado</th>
+                    <th className="px-6 py-4 text-left font-semibold text-neutral-300">Calificación</th>
                     <th className="px-6 py-4 text-right font-semibold text-neutral-300">Acciones</th>
                   </tr>
                 </thead>
@@ -209,6 +210,9 @@ export default function EvidenciasPage({ usuario }) {
                         }`}>
                           {ev.status === "aprobado" ? "✓ Aprobado" : ev.status === "rechazado" ? "✗ Rechazado" : "⏳ Pendiente"}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 text-primary-brand font-bold">
+                        {ev.grade ?? ev.calificacion ?? "Sin calificar"}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition">

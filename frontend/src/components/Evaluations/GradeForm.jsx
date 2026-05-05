@@ -101,7 +101,7 @@ export default function FormularioCalificacion({ criterio, evaluacionExistente =
       setFormData({ calificacion: '', observacion: '' })
       setFeedbackSugerido(null)
     } catch (err) {
-      alert('Error: ' + err.response?.data?.error || err.message)
+      alert('Error: ' + (err.response?.data?.error || err.message))
     } finally {
       setCargando(false)
     }

@@ -27,6 +27,11 @@ export async function crearEvaluacion(formData) {
   return response.data[0] || response.data
 }
 
+export async function calificarActividad(formData) {
+  const response = await axios.post(`${API_URL}/actividad`, formData, { headers: getAuthHeader() })
+  return response.data[0] || response.data
+}
+
 export async function actualizarEvaluacion(evaluacion_id, formData) {
   const payload = {
     ...formData,

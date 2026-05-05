@@ -1,12 +1,46 @@
 import React, { useState } from "react"
 import { useCompetencias } from "../hooks/useCompetencies"
-import { BookOpen, Plus, Trash2 } from "lucide-react"
+import { BookOpen, Edit, Plus, Trash2 } from "lucide-react"
+
+const COMPETENCIAS_PREDEFINIDAS = [
+  {
+    name: "Comunicación efectiva",
+    description: "Expresa ideas de forma clara, precisa y adecuada al contexto.",
+    descriptor: "Organiza información, argumenta con claridad y adapta su comunicación a diferentes audiencias.",
+    subject: "Competencia transversal"
+  },
+  {
+    name: "Resolución de problemas",
+    description: "Analiza situaciones y propone soluciones pertinentes.",
+    descriptor: "Identifica causas, evalúa alternativas y aplica procedimientos para resolver problemas.",
+    subject: "Competencia transversal"
+  },
+  {
+    name: "Trabajo colaborativo",
+    description: "Participa de manera responsable en equipos de trabajo.",
+    descriptor: "Colabora, asume roles, respeta acuerdos y contribuye al logro de objetivos comunes.",
+    subject: "Competencia transversal"
+  },
+  {
+    name: "Pensamiento crítico",
+    description: "Evalúa información y toma decisiones fundamentadas.",
+    descriptor: "Contrasta fuentes, interpreta evidencias y justifica conclusiones con criterios claros.",
+    subject: "Competencia transversal"
+  },
+  {
+    name: "Uso de herramientas tecnológicas",
+    description: "Utiliza recursos digitales para producir, comunicar y resolver tareas.",
+    descriptor: "Selecciona herramientas tecnológicas adecuadas y las aplica de forma ética y eficiente.",
+    subject: "Tecnología"
+  }
+]
 
 export default function CompetenciasPage({ usuario }) {
   const {
     competencias,
     loading: cargando,
     agregarCompetencia,
+    actualizarCompetencia,
     eliminarCompetencia,
     fetchCompetencias
   } = useCompetencias()
@@ -14,6 +48,7 @@ export default function CompetenciasPage({ usuario }) {
   const [tab, setTab] = useState("ver")
   const [cargandoCrear, setCargandoCrear] = useState(false)
   const [exitoCrear, setExitoCrear] = useState(false)
+  const [competenciaEditando, setCompetenciaEditando] = useState(null)
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -24,12 +59,29 @@ export default function CompetenciasPage({ usuario }) {
   const rolUsuario = usuario?.rol?.toLowerCase()
   const puedeCrear = rolUsuario === "teacher"
 
+  const aplicarPlantilla = (nombre) => {
+    const plantilla = COMPETENCIAS_PREDEFINIDAS.find((item) => item.name === nombre)
+    if (!plantilla) return
+    setFormData(plantilla)
+  }
+
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData({
       ...formData,
       [name]: value
     })
+  }
+
+  const abrirEdicion = (competencia) => {
+    setCompetenciaEditando(competencia)
+    setFormData({
+      name: competencia.name || competencia.nombre || "",
+      description: competencia.description || "",
+      subject: competencia.subject || "",
+      descriptor: competencia.descriptor || ""
+    })
+    setTab("crear")
   }
 
   const handleCrear = async (e) => {
@@ -41,9 +93,14 @@ export default function CompetenciasPage({ usuario }) {
 
     setCargandoCrear(true)
     try {
-      await agregarCompetencia(formData)
+      if (competenciaEditando) {
+        await actualizarCompetencia(competenciaEditando.id, formData)
+      } else {
+        await agregarCompetencia(formData)
+      }
       setExitoCrear(true)
       setFormData({ name: "", description: "", subject: "", descriptor: "" })
+      setCompetenciaEditando(null)
       setTimeout(() => {
         setExitoCrear(false)
         setTab("ver")
@@ -145,12 +202,22 @@ export default function CompetenciasPage({ usuario }) {
                       {comp.subject && <p className="text-xs text-neutral-500 mt-1">{comp.subject}</p>}
                     </div>
                     {puedeCrear && (
-                      <button
-                        onClick={() => handleEliminar(comp.id)}
-                        className="p-2 hover:bg-danger/20 rounded-lg transition text-danger ml-2"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1 ml-2">
+                        <button
+                          onClick={() => abrirEdicion(comp)}
+                          className="p-2 hover:bg-primary-brand/20 rounded-lg transition text-primary-brand"
+                          title="Editar competencia"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleEliminar(comp.id)}
+                          className="p-2 hover:bg-danger/20 rounded-lg transition text-danger"
+                          title="Eliminar competencia"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     )}
                   </div>
                   <p className="text-neutral-400 text-sm">{comp.description}</p>
@@ -165,22 +232,28 @@ export default function CompetenciasPage({ usuario }) {
       {/* CREAR COMPETENCIA */}
       {tab === "crear" && puedeCrear && (
         <div className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl p-8 max-w-2xl">
-          <h2 className="text-2xl font-bold text-white mb-6">Crear Nueva Competencia</h2>
+          <h2 className="text-2xl font-bold text-white mb-6">
+            {competenciaEditando ? "Editar Competencia" : "Crear Nueva Competencia"}
+          </h2>
 
           <form onSubmit={handleCrear} className="space-y-5">
             <div>
               <label className="block text-sm font-semibold text-white mb-2">
                 Nombre *
               </label>
-              <input
-                type="text"
-                name="name"
+              <select
                 value={formData.name}
-                onChange={handleChange}
-                placeholder="Ej: Liderazgo"
+                onChange={(event) => aplicarPlantilla(event.target.value)}
                 disabled={cargandoCrear}
                 className="w-full bg-neutral-800/50 border border-neutral-700 text-white rounded-lg px-4 py-3 placeholder-neutral-500 focus:outline-none focus:border-primary-brand focus:ring-2 focus:ring-primary-brand/20 transition disabled:opacity-50"
-              />
+              >
+                <option value="">Selecciona una competencia</option>
+                {COMPETENCIAS_PREDEFINIDAS.map((competencia) => (
+                  <option key={competencia.name} value={competencia.name}>
+                    {competencia.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -240,13 +313,14 @@ export default function CompetenciasPage({ usuario }) {
                 disabled={cargandoCrear}
                 className="flex-1 bg-gradient-to-r from-primary-brand to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50"
               >
-                {cargandoCrear ? "Creando..." : "+ Crear Competencia"}
+                {cargandoCrear ? "Guardando..." : competenciaEditando ? "Guardar Cambios" : "+ Crear Competencia"}
               </button>
               <button
                 type="button"
                 onClick={() => {
                   setTab("ver")
                   setFormData({ name: "", description: "", subject: "", descriptor: "" })
+                  setCompetenciaEditando(null)
                 }}
                 disabled={cargandoCrear}
                 className="flex-1 bg-neutral-700 hover:bg-neutral-600 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50"

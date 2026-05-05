@@ -36,6 +36,8 @@ const SECCIONES = [
   { nombre: 'Mi Progreso', desc: 'Ver mi progreso académico', ruta: '/progresos', roles: ['student'] },
 ]
 
+const API_BASE = 'http://localhost:5000/api'
+
 function useNotificaciones(studentId) {
   const [notificaciones, setNotificaciones] = useState([])
   const [mostrarModal, setMostrarModal] = useState(false)
@@ -48,7 +50,7 @@ function useNotificaciones(studentId) {
 
     const cargar = async () => {
       try {
-        const res = await axios.get(`/api/notificaciones/${studentId}`)
+        const res = await axios.get(`${API_BASE}/notificaciones/${studentId}`)
         setNotificaciones(res.data || [])
       } catch (error) {
         console.error('Error al cargar notificaciones:', error)
@@ -61,7 +63,7 @@ function useNotificaciones(studentId) {
   }, [studentId])
 
   const marcarLeida = async (notificacionId) => {
-    await axios.put(`/api/notificaciones/${notificacionId}/leer`)
+    await axios.put(`${API_BASE}/notificaciones/${notificacionId}/leer`)
     setNotificaciones((actuales) => actuales.filter((n) => n.id !== notificacionId))
   }
 

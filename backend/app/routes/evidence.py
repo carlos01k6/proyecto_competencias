@@ -97,6 +97,43 @@ def activity_exists(activity_id):
     return bool(response.data)
 
 
+def anexar_calificaciones(evidencias):
+    if not evidencias:
+        return []
+
+    activity_ids = list({item.get('activity_id') for item in evidencias if item.get('activity_id')})
+    student_ids = list({item.get('student_id') for item in evidencias if item.get('student_id')})
+    if not activity_ids or not student_ids:
+        return evidencias
+
+    response = (
+        supabase.table('evaluations')
+        .select('activity_id, student_id, grade, observation, grading_date, created_at')
+        .in_('activity_id', activity_ids)
+        .in_('student_id', student_ids)
+        .execute()
+    )
+
+    ultimas = {}
+    for evaluation in response.data or []:
+        key = (evaluation.get('activity_id'), evaluation.get('student_id'))
+        fecha = evaluation.get('grading_date') or evaluation.get('created_at') or ''
+        actual = ultimas.get(key)
+        if not actual or fecha >= (actual.get('grading_date') or actual.get('created_at') or ''):
+            ultimas[key] = evaluation
+
+    resultado = []
+    for evidencia in evidencias:
+        evaluacion = ultimas.get((evidencia.get('activity_id'), evidencia.get('student_id')))
+        resultado.append({
+            **evidencia,
+            'grade': evaluacion.get('grade') if evaluacion else None,
+            'calificacion': evaluacion.get('grade') if evaluacion else None,
+            'feedback': evaluacion.get('observation') if evaluacion else ''
+        })
+    return resultado
+
+
 # OBTENER TODAS LAS EVIDENCIAS
 @evidencias_bp.route('', methods=['GET'])
 def obtener_todas_evidencias():
@@ -106,7 +143,7 @@ def obtener_todas_evidencias():
         if current_user and (current_user.get('role') in ['', 'student', 'estudiante']):
             query = query.eq('student_id', current_user.get('id'))
         response = query.execute()
-        return jsonify(response.data), 200
+        return jsonify(anexar_calificaciones(response.data or [])), 200
     except Exception as e:
         print(f"ERROR OBTENER EVIDENCIAS: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -117,7 +154,7 @@ def obtener_todas_evidencias():
 def listar_evidencias(actividad_id):
     try:
         response = supabase.table('evidence').select('*').eq('activity_id', actividad_id).execute()
-        return jsonify(response.data), 200
+        return jsonify(anexar_calificaciones(response.data or [])), 200
     except Exception as e:
         print(f"ERROR LISTAR EVIDENCIAS: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -131,7 +168,7 @@ def listar_evidencias_estudiante(student_id):
             return jsonify({'error': 'No autorizado para ver evidencias de este estudiante'}), 403
 
         response = supabase.table('evidence').select('*').eq('student_id', student_id).execute()
-        return jsonify(response.data or []), 200
+        return jsonify(anexar_calificaciones(response.data or [])), 200
     except Exception as e:
         print(f"ERROR LISTAR EVIDENCIAS ESTUDIANTE: {str(e)}")
         return jsonify({'error': str(e)}), 500

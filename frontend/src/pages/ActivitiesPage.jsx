@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from "react"
 import { useActividades } from "../hooks/useActivities"
+import { useCompetencias } from "../hooks/useCompetencies"
+import { useResultados } from "../hooks/useOutcomes"
 import * as evidenciasService from "../services/evidence"
+import * as evaluacionesService from "../services/evaluations"
 import { ClipboardList, Plus, Trash2, Download, Upload } from "lucide-react"
 
 export default function ActividadesPage({ usuario }) {
   const { actividades, cargando, agregarActividad, eliminarActividad, obtenerActividades } = useActividades()
+  const { competencias } = useCompetencias()
   
   const [tab, setTab] = useState("ver")
   const [cargandoCrear, setCargandoCrear] = useState(false)
@@ -12,10 +16,15 @@ export default function ActividadesPage({ usuario }) {
   const [evidenciasPorActividad, setEvidenciasPorActividad] = useState({})
   const [archivosPorActividad, setArchivosPorActividad] = useState({})
   const [descripcionPorActividad, setDescripcionPorActividad] = useState({})
+  const [calificacionesPorEvidencia, setCalificacionesPorEvidencia] = useState({})
+  const [observacionesPorEvidencia, setObservacionesPorEvidencia] = useState({})
+  const [calificandoEvidenciaId, setCalificandoEvidenciaId] = useState(null)
+  const [filtroEstudiante, setFiltroEstudiante] = useState("pendientes")
   const [subiendoActividadId, setSubiendoActividadId] = useState(null)
   const [formData, setFormData] = useState({
     name: "",
     description: "",
+    competency_id: "",
     learning_outcome_id: "",
     start_date: new Date().toISOString().split('T')[0],
     close_date: "",
@@ -26,16 +35,17 @@ export default function ActividadesPage({ usuario }) {
   const rolUsuario = usuario?.rol?.toLowerCase()
   const puedeCrear = rolUsuario === "teacher"
   const esEstudiante = rolUsuario === "student"
+  const { resultados, cargando: cargandoResultados } = useResultados(formData.competency_id)
 
   useEffect(() => {
     const cargarEvidencias = async () => {
-      if (!esEstudiante || !usuario?.id || actividades.length === 0) return
+      if ((!esEstudiante && !puedeCrear) || actividades.length === 0) return
       const entradas = await Promise.all(
         actividades.map(async (actividad) => {
           try {
             const evidencias = await evidenciasService.obtenerEvidencias(actividad.id)
-            const propias = evidencias.filter((ev) => ev.student_id === usuario.id)
-            return [actividad.id, propias]
+            const visibles = esEstudiante ? evidencias.filter((ev) => ev.student_id === usuario.id) : evidencias
+            return [actividad.id, visibles]
           } catch {
             return [actividad.id, []]
           }
@@ -45,13 +55,14 @@ export default function ActividadesPage({ usuario }) {
     }
 
     cargarEvidencias()
-  }, [actividades, esEstudiante, usuario?.id])
+  }, [actividades, esEstudiante, puedeCrear, usuario?.id])
 
   const handleChange = (e) => {
     const { name, value } = e.target
     setFormData({
       ...formData,
-      [name]: name === "max_score" ? parseInt(value) : value
+      [name]: name === "max_score" ? parseInt(value) : value,
+      ...(name === "competency_id" ? { learning_outcome_id: "" } : {})
     })
   }
 
@@ -69,6 +80,7 @@ export default function ActividadesPage({ usuario }) {
       setFormData({
         name: "",
         description: "",
+        competency_id: "",
         learning_outcome_id: "",
         start_date: new Date().toISOString().split('T')[0],
         close_date: "",
@@ -84,6 +96,35 @@ export default function ActividadesPage({ usuario }) {
       alert("Error al crear actividad: " + (error.response?.data?.mensaje || error.message))
     } finally {
       setCargandoCrear(false)
+    }
+  }
+
+  const handleCalificarEvidencia = async (actividad, evidencia) => {
+    const grade = calificacionesPorEvidencia[evidencia.id]
+    if (grade === undefined || grade === "") {
+      alert("Ingresa una calificación")
+      return
+    }
+
+    setCalificandoEvidenciaId(evidencia.id)
+    try {
+      await evaluacionesService.calificarActividad({
+        activity_id: actividad.id,
+        student_id: evidencia.student_id,
+        grade,
+        observation: observacionesPorEvidencia[evidencia.id] || "",
+        teacher_id: usuario?.id,
+        evaluation_date: new Date().toISOString()
+      })
+      const evidencias = await evidenciasService.obtenerEvidencias(actividad.id)
+      setEvidenciasPorActividad({
+        ...evidenciasPorActividad,
+        [actividad.id]: esEstudiante ? evidencias.filter((ev) => ev.student_id === usuario.id) : evidencias
+      })
+    } catch (error) {
+      alert("Error al calificar: " + (error.response?.data?.error || error.message))
+    } finally {
+      setCalificandoEvidenciaId(null)
     }
   }
 
@@ -217,6 +258,31 @@ export default function ActividadesPage({ usuario }) {
       {/* VER ACTIVIDADES */}
       {tab === "ver" && (
         <div className="space-y-6">
+          {esEstudiante && (
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setFiltroEstudiante("pendientes")}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                  filtroEstudiante === "pendientes"
+                    ? "bg-primary-brand text-white"
+                    : "bg-neutral-800/70 text-neutral-300 border border-neutral-700"
+                }`}
+              >
+                Pendientes
+              </button>
+              <button
+                onClick={() => setFiltroEstudiante("completadas")}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+                  filtroEstudiante === "completadas"
+                    ? "bg-primary-brand text-white"
+                    : "bg-neutral-800/70 text-neutral-300 border border-neutral-700"
+                }`}
+              >
+                Completadas
+              </button>
+            </div>
+          )}
+
           {cargando ? (
             <div className="text-center text-neutral-400 py-12">
               <div className="animate-spin inline-block">
@@ -230,7 +296,13 @@ export default function ActividadesPage({ usuario }) {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {actividades.map((actividad) => (
+              {actividades
+                .filter((actividad) => {
+                  if (!esEstudiante) return true
+                  const tieneEvidencias = (evidenciasPorActividad[actividad.id] || []).length > 0
+                  return filtroEstudiante === "completadas" ? tieneEvidencias : !tieneEvidencias
+                })
+                .map((actividad) => (
                 <div key={actividad.id} className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl p-6 hover:border-primary-brand/30 transition">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
@@ -254,6 +326,62 @@ export default function ActividadesPage({ usuario }) {
                   {actividad.close_date && (
                     <div className="text-xs text-neutral-500 mb-4">
                       📅 Entrega: {new Date(actividad.close_date).toLocaleDateString('es-ES')}
+                    </div>
+                  )}
+
+                  {puedeCrear && (
+                    <div className="border-t border-neutral-700 pt-4 space-y-3">
+                      <h4 className="text-sm font-bold text-white">Evidencias recibidas</h4>
+                      {(evidenciasPorActividad[actividad.id] || []).length === 0 ? (
+                        <p className="text-xs text-neutral-500">Sin evidencias entregadas.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {(evidenciasPorActividad[actividad.id] || []).map((ev) => (
+                            <div key={ev.id} className="rounded-lg bg-neutral-900/70 border border-neutral-800 p-3 space-y-2">
+                              <div className="flex items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-xs font-semibold text-white truncate">{ev.file_url || "Evidencia"}</p>
+                                  <p className="text-[11px] text-neutral-500">{ev.student_id}</p>
+                                </div>
+                                <span className="text-xs font-bold text-primary-brand">
+                                  {ev.grade ?? ev.calificacion ?? "Sin nota"}
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-1 gap-2">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  value={calificacionesPorEvidencia[ev.id] ?? ev.grade ?? ""}
+                                  onChange={(event) => setCalificacionesPorEvidencia({
+                                    ...calificacionesPorEvidencia,
+                                    [ev.id]: event.target.value
+                                  })}
+                                  placeholder="Calificación"
+                                  className="w-full bg-neutral-800/70 border border-neutral-700 text-white rounded px-3 py-2 text-sm"
+                                />
+                                <input
+                                  type="text"
+                                  value={observacionesPorEvidencia[ev.id] ?? ev.feedback ?? ""}
+                                  onChange={(event) => setObservacionesPorEvidencia({
+                                    ...observacionesPorEvidencia,
+                                    [ev.id]: event.target.value
+                                  })}
+                                  placeholder="Observación"
+                                  className="w-full bg-neutral-800/70 border border-neutral-700 text-white rounded px-3 py-2 text-sm"
+                                />
+                                <button
+                                  onClick={() => handleCalificarEvidencia(actividad, ev)}
+                                  disabled={calificandoEvidenciaId === ev.id}
+                                  className="bg-primary-brand hover:bg-primary-600 text-white rounded px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                                >
+                                  {calificandoEvidenciaId === ev.id ? "Guardando..." : "Calificar actividad"}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -332,6 +460,46 @@ export default function ActividadesPage({ usuario }) {
           <h2 className="text-2xl font-bold text-white mb-6">Crear Nueva Actividad</h2>
 
           <form onSubmit={handleCrear} className="space-y-5">
+            <div>
+              <label className="block text-sm font-semibold text-white mb-2">
+                Competencia asociada
+              </label>
+              <select
+                name="competency_id"
+                value={formData.competency_id}
+                onChange={handleChange}
+                disabled={cargandoCrear}
+                className="w-full bg-neutral-800/50 border border-neutral-700 text-white rounded-lg px-4 py-3 placeholder-neutral-500 focus:outline-none focus:border-primary-brand focus:ring-2 focus:ring-primary-brand/20 transition disabled:opacity-50"
+              >
+                <option value="">Selecciona una competencia</option>
+                {competencias.map((competencia) => (
+                  <option key={competencia.id} value={competencia.id}>
+                    {competencia.name || competencia.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-white mb-2">
+                Resultado de aprendizaje asociado
+              </label>
+              <select
+                name="learning_outcome_id"
+                value={formData.learning_outcome_id}
+                onChange={handleChange}
+                disabled={cargandoCrear || !formData.competency_id || cargandoResultados}
+                className="w-full bg-neutral-800/50 border border-neutral-700 text-white rounded-lg px-4 py-3 placeholder-neutral-500 focus:outline-none focus:border-primary-brand focus:ring-2 focus:ring-primary-brand/20 transition disabled:opacity-50"
+              >
+                <option value="">{!formData.competency_id ? "Primero selecciona competencia" : "Selecciona un resultado"}</option>
+                {resultados.map((resultado) => (
+                  <option key={resultado.id} value={resultado.id}>
+                    {resultado.title || resultado.nombre || resultado.id}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <div>
               <label className="block text-sm font-semibold text-white mb-2">
                 Título *
@@ -413,6 +581,7 @@ export default function ActividadesPage({ usuario }) {
                   setFormData({
                     name: "",
                     description: "",
+                    competency_id: "",
                     learning_outcome_id: "",
                     start_date: new Date().toISOString().split('T')[0],
                     close_date: "",

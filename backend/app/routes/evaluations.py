@@ -3,9 +3,97 @@ from supabase import Client
 from ..supabase_client import get_supabase
 import uuid
 import math
+import jwt
 
 evaluaciones_bp = Blueprint('evaluations', __name__, url_prefix='/api/evaluaciones')
 supabase: Client = get_supabase()
+
+
+def get_user_id_from_token():
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        token_user_id = payload.get('sub')
+        user_response = supabase.table('users').select('id').eq('id', token_user_id).limit(1).execute()
+        if user_response.data:
+            return token_user_id
+        email = payload.get('email')
+        if email:
+            user_response = supabase.table('users').select('id').eq('email', email).limit(1).execute()
+            if user_response.data:
+                return user_response.data[0]['id']
+    except Exception:
+        pass
+    return None
+
+
+def obtener_criterio_para_actividad(activity_id, criteria_id=None):
+    if criteria_id:
+        return criteria_id, None
+
+    actividad_response = supabase.table('activities').select('id, title, learning_outcome_id').eq('id', activity_id).limit(1).execute()
+    actividad = actividad_response.data[0] if actividad_response.data else {}
+    learning_outcome_id = actividad.get('learning_outcome_id')
+    if not learning_outcome_id:
+        return None, None
+
+    criterios_response = (
+        supabase.table('criteria')
+        .select('id')
+        .eq('learning_outcome_id', learning_outcome_id)
+        .limit(1)
+        .execute()
+    )
+    if criterios_response.data:
+        return criterios_response.data[0]['id'], learning_outcome_id
+
+    criterio = {
+        'id': str(uuid.uuid4()),
+        'name': f"Evaluación de {actividad.get('title') or 'actividad'}",
+        'learning_outcome_id': learning_outcome_id,
+        'weighting': 100
+    }
+    response = supabase.table('criteria').insert(criterio).execute()
+    creado = response.data[0] if response.data else criterio
+    return creado['id'], learning_outcome_id
+
+
+def obtener_actividad_relacionada(criteria_id):
+    if not criteria_id:
+        return None
+
+    criterio_response = supabase.table('criteria').select('learning_outcome_id').eq('id', criteria_id).limit(1).execute()
+    if not criterio_response.data:
+        return None
+
+    learning_outcome_id = criterio_response.data[0].get('learning_outcome_id')
+    if not learning_outcome_id:
+        return None
+
+    actividad_response = (
+        supabase.table('activities')
+        .select('id')
+        .eq('learning_outcome_id', learning_outcome_id)
+        .limit(1)
+        .execute()
+    )
+    if actividad_response.data:
+        return actividad_response.data[0]['id']
+
+    actividad = {
+        'id': str(uuid.uuid4()),
+        'learning_outcome_id': learning_outcome_id,
+        'title': 'Evaluación de competencia',
+        'description': 'Actividad generada para registrar calificaciones por competencia.',
+        'type': 'evaluacion',
+        'max_score': 100,
+        'status': 'active'
+    }
+    response = supabase.table('activities').insert(actividad).execute()
+    creada = response.data[0] if response.data else actividad
+    return creada['id']
 
 # LISTAR EVALUACIONES POR CRITERIO
 @evaluaciones_bp.route('/criterio/<criterio_id>', methods=['GET'])
@@ -120,11 +208,15 @@ def crear_evaluacion():
         if calificacion < 0 or calificacion > 100:
             return jsonify({'error': 'La calificación debe estar entre 0 y 100'}), 400
         
+        activity_id = data.get('activity_id') or obtener_actividad_relacionada(data.get('criteria_id'))
+        if not activity_id:
+            return jsonify({'error': 'No se pudo asociar la evaluacion a una actividad'}), 400
+
         nueva_evaluacion = {
             'id': str(uuid.uuid4()),
             'criteria_id': data.get('criteria_id'),
             'student_id': data.get('student_id'),
-            'activity_id': data.get('activity_id'),
+            'activity_id': activity_id,
             'grade': calificacion,
             'observation': data.get('observation', ''),
             'teacher_id': data.get('teacher_id'),
@@ -139,6 +231,62 @@ def crear_evaluacion():
         return jsonify(response.data[0]), 201
     except Exception as e:
         print(f"ERROR CREAR EVALUACIÓN: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@evaluaciones_bp.route('/actividad', methods=['POST'])
+def calificar_actividad():
+    try:
+        data = request.get_json() or {}
+        student_id = data.get('student_id')
+        activity_id = data.get('activity_id')
+        grade = data.get('grade')
+
+        if not student_id or not activity_id or grade is None:
+            return jsonify({'error': 'student_id, activity_id y grade son requeridos'}), 400
+
+        try:
+            calificacion = float(grade)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'grade debe ser numerico'}), 400
+
+        if calificacion < 0 or calificacion > 100:
+            return jsonify({'error': 'La calificación debe estar entre 0 y 100'}), 400
+
+        criteria_id, learning_outcome_id = obtener_criterio_para_actividad(activity_id, data.get('criteria_id'))
+        if not criteria_id:
+            return jsonify({'error': 'La actividad no está asociada a una competencia/resultado'}), 400
+
+        existente_response = (
+            supabase.table('evaluations')
+            .select('id')
+            .eq('student_id', student_id)
+            .eq('activity_id', activity_id)
+            .eq('criteria_id', criteria_id)
+            .limit(1)
+            .execute()
+        )
+
+        payload = {
+            'criteria_id': criteria_id,
+            'student_id': student_id,
+            'activity_id': activity_id,
+            'grade': calificacion,
+            'observation': data.get('observation') or '',
+            'teacher_id': data.get('teacher_id') or get_user_id_from_token(),
+            'grading_date': data.get('evaluation_date') or data.get('grading_date')
+        }
+
+        if existente_response.data:
+            response = supabase.table('evaluations').update(payload).eq('id', existente_response.data[0]['id']).execute()
+        else:
+            payload['id'] = str(uuid.uuid4())
+            response = supabase.table('evaluations').insert(payload).execute()
+
+        actualizar_promedio_resultado(student_id, learning_outcome_id)
+        return jsonify(response.data[0] if response.data else payload), 200
+    except Exception as e:
+        print(f"ERROR CALIFICAR ACTIVIDAD: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # ACTUALIZAR EVALUACIÓN

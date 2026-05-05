@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import * as plantillasService from "../services/templates"
 
-export function usePlantillas() {
+export function usePlantillas(enabled = true) {
   const [plantillas, setPlantillas] = useState([])
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState(null)
@@ -20,8 +20,10 @@ export function usePlantillas() {
   }
 
   useEffect(() => {
-    obtenerPlantillas()
-  }, [])
+    if (enabled) {
+      obtenerPlantillas()
+    }
+  }, [enabled])
 
   return {
     plantillas,
@@ -120,4 +122,3 @@ export function useAplicarPlantilla() {
     error
   }
 }
-

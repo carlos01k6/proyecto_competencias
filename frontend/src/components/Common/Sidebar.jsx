@@ -44,6 +44,7 @@ export default function Sidebar({ usuario, onToggleExpand }) {
         items: [
           { path: "/competencias", label: "Competencias", icon: BookOpen },
           { path: "/rubricas", label: "Rúbricas Globales", icon: CheckSquare },
+          { path: "/plantillas", label: "Plantillas", icon: FileCheck },
           { path: "/criterios", label: "Criterios", icon: Award },
           { path: "/escalas", label: "Escalas", icon: BarChart3 }
         ]
@@ -106,7 +107,8 @@ export default function Sidebar({ usuario, onToggleExpand }) {
         items: [
           { path: "/competencias", label: "Competencias", icon: BookOpen },
           { path: "/actividades", label: "Actividades", icon: ClipboardList },
-          { path: "/mis-rubricas", label: "Mis Rúbricas", icon: CheckSquare }
+          { path: "/mis-rubricas", label: "Mis Rúbricas", icon: CheckSquare },
+          { path: "/plantillas", label: "Plantillas", icon: FileCheck }
         ]
       },
       {

@@ -18,6 +18,7 @@ import {
 import { useCompetencias } from "../hooks/useCompetencies"
 
 const contenidoInicial = {
+  escala: "0-100",
   niveles: [
     { nivel: 1, descripcion: "Insuficiente", rango_min: 0, rango_max: 39 },
     { nivel: 2, descripcion: "Basico", rango_min: 40, rango_max: 69 },
@@ -35,21 +36,46 @@ function formatearFecha(fecha) {
   })
 }
 
-function formatearJson(valor) {
-  return JSON.stringify(valor || {}, null, 2)
+function normalizarContenido(contenido = {}) {
+  const nivelesBase = Array.isArray(contenido?.niveles) ? contenido.niveles : contenidoInicial.niveles
+  return {
+    escala: contenido?.escala || "0-100",
+    niveles: nivelesBase.map((nivel, index) => {
+      if (typeof nivel === "string") {
+        return {
+          nivel: index + 1,
+          descripcion: nivel,
+          rango_min: index === 0 ? 0 : "",
+          rango_max: index === nivelesBase.length - 1 ? 100 : ""
+        }
+      }
+
+      return {
+        nivel: nivel?.nivel || index + 1,
+        descripcion: nivel?.descripcion || nivel?.nombre || "",
+        rango_min: nivel?.rango_min ?? nivel?.min ?? "",
+        rango_max: nivel?.rango_max ?? nivel?.max ?? ""
+      }
+    })
+  }
 }
 
 function crearFormVacio() {
+  const contenido = normalizarContenido(contenidoInicial)
   return {
     id: null,
     nombre: "",
     descripcion: "",
-    contenidoTexto: formatearJson(contenidoInicial)
+    escala: contenido.escala,
+    niveles: contenido.niveles
   }
 }
 
 export default function PlantillasPage({ usuario }) {
-  const { plantillas, cargando, error, obtenerPlantillas } = usePlantillas()
+  const rolUsuario = usuario?.rol?.toLowerCase()
+  const puedeGestionar = rolUsuario === "teacher" || rolUsuario === "docente" || rolUsuario === "admin"
+
+  const { plantillas, cargando, error, obtenerPlantillas } = usePlantillas(puedeGestionar)
   const { crear, actualizar, cargando: guardando, error: errorGuardar } = useGuardarPlantilla()
   const { eliminar, cargando: eliminando, error: errorEliminar } = useEliminarPlantilla()
   const { aplicar, cargando: aplicando, error: errorAplicar } = useAplicarPlantilla()
@@ -61,9 +87,6 @@ export default function PlantillasPage({ usuario }) {
   const [competenciaId, setCompetenciaId] = useState("")
   const [mensaje, setMensaje] = useState("")
   const [errorLocal, setErrorLocal] = useState("")
-
-  const rolUsuario = usuario?.rol?.toLowerCase()
-  const puedeGestionar = rolUsuario === "teacher" || rolUsuario === "docente" || rolUsuario === "admin"
 
   const errorVisible = error || errorGuardar || errorEliminar || errorAplicar || errorLocal
 
@@ -80,11 +103,13 @@ export default function PlantillasPage({ usuario }) {
   }
 
   const abrirEditar = (plantilla) => {
+    const contenido = normalizarContenido(plantilla.contenido || {})
     setFormData({
       id: plantilla.id,
       nombre: plantilla.nombre || "",
       descripcion: plantilla.descripcion || "",
-      contenidoTexto: formatearJson(plantilla.contenido || {})
+      escala: contenido.escala,
+      niveles: contenido.niveles
     })
     setModoFormulario(true)
     setErrorLocal("")
@@ -102,11 +127,54 @@ export default function PlantillasPage({ usuario }) {
     setFormData((actual) => ({ ...actual, [name]: value }))
   }
 
-  const parsearContenido = () => {
-    try {
-      return JSON.parse(formData.contenidoTexto || "{}")
-    } catch (err) {
-      throw new Error("El contenido debe ser JSON valido")
+  const actualizarNivel = (index, campo, valor) => {
+    setFormData((actual) => ({
+      ...actual,
+      niveles: actual.niveles.map((nivel, nivelIndex) => (
+        nivelIndex === index ? { ...nivel, [campo]: valor } : nivel
+      ))
+    }))
+  }
+
+  const agregarNivel = () => {
+    setFormData((actual) => ({
+      ...actual,
+      niveles: [
+        ...actual.niveles,
+        {
+          nivel: actual.niveles.length + 1,
+          descripcion: "",
+          rango_min: "",
+          rango_max: ""
+        }
+      ]
+    }))
+  }
+
+  const eliminarNivel = (index) => {
+    setFormData((actual) => ({
+      ...actual,
+      niveles: actual.niveles
+        .filter((_, nivelIndex) => nivelIndex !== index)
+        .map((nivel, nivelIndex) => ({ ...nivel, nivel: nivelIndex + 1 }))
+    }))
+  }
+
+  const construirContenido = () => {
+    const niveles = formData.niveles.map((nivel, index) => ({
+      nivel: index + 1,
+      descripcion: nivel.descripcion.trim(),
+      rango_min: nivel.rango_min === "" ? null : Number(nivel.rango_min),
+      rango_max: nivel.rango_max === "" ? null : Number(nivel.rango_max)
+    }))
+
+    if (niveles.some((nivel) => !nivel.descripcion)) {
+      throw new Error("Cada nivel debe tener una descripcion")
+    }
+
+    return {
+      escala: formData.escala.trim() || "0-100",
+      niveles
     }
   }
 
@@ -124,7 +192,7 @@ export default function PlantillasPage({ usuario }) {
       const payload = {
         nombre: formData.nombre.trim(),
         descripcion: formData.descripcion.trim(),
-        contenido: parsearContenido()
+        contenido: construirContenido()
       }
 
       if (formData.id) {
@@ -170,6 +238,24 @@ export default function PlantillasPage({ usuario }) {
     } catch (err) {
       setErrorLocal(err.message)
     }
+  }
+
+  if (!puedeGestionar) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 p-6 md:p-8">
+        <div className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl p-8">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="p-3 bg-gradient-to-br from-rose-600 to-rose-700 rounded-lg">
+              <LayoutTemplate className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold text-white">Plantillas de Rubricas</h1>
+          </div>
+          <p className="text-neutral-400">
+            Esta seccion esta disponible para administradores y docentes.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -245,17 +331,93 @@ export default function PlantillasPage({ usuario }) {
               </label>
             </div>
 
-            <label className="block">
-              <span className="text-sm font-semibold text-neutral-300">Contenido JSON</span>
-              <textarea
-                name="contenidoTexto"
-                value={formData.contenidoTexto}
+            <label className="block max-w-xs">
+              <span className="text-sm font-semibold text-neutral-300">Escala</span>
+              <input
+                type="text"
+                name="escala"
+                value={formData.escala}
                 onChange={handleChange}
                 disabled={guardando}
-                rows="12"
-                className="mt-2 w-full bg-neutral-950 border border-neutral-700 text-white rounded-lg px-4 py-3 font-mono text-sm focus:outline-none focus:border-primary-brand"
+                className="mt-2 w-full bg-neutral-950 border border-neutral-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-primary-brand"
+                placeholder="0-100"
               />
             </label>
+
+            <div>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <h3 className="text-sm font-semibold text-neutral-300">Niveles de desempeno</h3>
+                <button
+                  type="button"
+                  onClick={agregarNivel}
+                  disabled={guardando}
+                  className="bg-neutral-700 hover:bg-neutral-600 disabled:opacity-50 text-white px-3 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2 transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  Agregar nivel
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {formData.niveles.map((nivel, index) => (
+                  <div
+                    key={`${nivel.nivel}-${index}`}
+                    className="grid grid-cols-1 md:grid-cols-[90px_minmax(0,1fr)_120px_120px_auto] gap-3 bg-neutral-950 border border-neutral-700 rounded-lg p-4"
+                  >
+                    <div>
+                      <span className="text-xs font-semibold text-neutral-500">Nivel</span>
+                      <div className="mt-2 h-11 rounded-lg bg-neutral-900 border border-neutral-800 text-white flex items-center px-3">
+                        {index + 1}
+                      </div>
+                    </div>
+                    <label className="block">
+                      <span className="text-xs font-semibold text-neutral-500">Descripcion</span>
+                      <input
+                        type="text"
+                        value={nivel.descripcion}
+                        onChange={(event) => actualizarNivel(index, "descripcion", event.target.value)}
+                        disabled={guardando}
+                        className="mt-2 w-full bg-neutral-900 border border-neutral-700 text-white rounded-lg px-3 py-2.5 focus:outline-none focus:border-primary-brand"
+                        placeholder="Avanzado"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-semibold text-neutral-500">Minimo</span>
+                      <input
+                        type="number"
+                        value={nivel.rango_min}
+                        onChange={(event) => actualizarNivel(index, "rango_min", event.target.value)}
+                        disabled={guardando}
+                        className="mt-2 w-full bg-neutral-900 border border-neutral-700 text-white rounded-lg px-3 py-2.5 focus:outline-none focus:border-primary-brand"
+                        placeholder="0"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-semibold text-neutral-500">Maximo</span>
+                      <input
+                        type="number"
+                        value={nivel.rango_max}
+                        onChange={(event) => actualizarNivel(index, "rango_max", event.target.value)}
+                        disabled={guardando}
+                        className="mt-2 w-full bg-neutral-900 border border-neutral-700 text-white rounded-lg px-3 py-2.5 focus:outline-none focus:border-primary-brand"
+                        placeholder="100"
+                      />
+                    </label>
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={() => eliminarNivel(index)}
+                        disabled={guardando || formData.niveles.length <= 1}
+                        className="w-full md:w-11 h-11 bg-danger hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg flex items-center justify-center transition"
+                        title="Eliminar nivel"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
               <button
@@ -319,27 +481,49 @@ export default function PlantillasPage({ usuario }) {
               )}
             </div>
           ) : (
-            plantillasOrdenadas.map((plantilla) => (
-              <div
-                key={plantilla.id}
-                className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 hover:border-primary-brand/40 rounded-2xl p-6 transition"
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0">
-                    <h3 className="text-xl font-bold text-white">{plantilla.nombre}</h3>
-                    <p className="text-neutral-400 text-sm mt-1">{plantilla.descripcion || "Sin descripcion"}</p>
-                    <p className="text-neutral-500 text-xs mt-3">Creada: {formatearFecha(plantilla.created_at)}</p>
-                  </div>
+            plantillasOrdenadas.map((plantilla) => {
+              const contenido = normalizarContenido(plantilla.contenido || {})
 
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => setPlantillaPreview(plantilla)}
-                      className="bg-neutral-700 hover:bg-neutral-600 text-white px-3 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2 transition"
-                    >
-                      <Eye className="w-4 h-4" />
-                      Preview
-                    </button>
-                    {puedeGestionar && (
+              return (
+                <div
+                  key={plantilla.id}
+                  className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 hover:border-primary-brand/40 rounded-2xl p-6 transition"
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0">
+                      <h3 className="text-xl font-bold text-white">{plantilla.nombre}</h3>
+                      <p className="text-neutral-400 text-sm mt-1">{plantilla.descripcion || "Sin descripcion"}</p>
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        <span className="bg-neutral-950 border border-neutral-700 text-neutral-300 rounded-lg px-3 py-1 text-xs font-semibold">
+                          Escala: {contenido.escala}
+                        </span>
+                        <span className="bg-neutral-950 border border-neutral-700 text-neutral-300 rounded-lg px-3 py-1 text-xs font-semibold">
+                          {contenido.niveles.length} niveles
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-4">
+                        {contenido.niveles.map((nivel, index) => (
+                          <div key={`${plantilla.id}-${index}`} className="bg-neutral-950/70 border border-neutral-800 rounded-lg p-3">
+                            <p className="text-sm font-semibold text-white">
+                              Nivel {index + 1}: {nivel.descripcion || "Sin descripcion"}
+                            </p>
+                            <p className="text-xs text-neutral-500 mt-1">
+                              Rango: {nivel.rango_min ?? "-"} a {nivel.rango_max ?? "-"}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-neutral-500 text-xs mt-3">Creada: {formatearFecha(plantilla.created_at)}</p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => setPlantillaPreview(plantilla)}
+                        className="bg-neutral-700 hover:bg-neutral-600 text-white px-3 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2 transition"
+                      >
+                        <Eye className="w-4 h-4" />
+                        Ver detalles
+                      </button>
                       <button
                         onClick={() => usarPlantilla(plantilla.id)}
                         disabled={aplicando || !competenciaId}
@@ -348,8 +532,6 @@ export default function PlantillasPage({ usuario }) {
                         <Wand2 className="w-4 h-4" />
                         Usar Plantilla
                       </button>
-                    )}
-                    {puedeGestionar && (
                       <button
                         onClick={() => abrirEditar(plantilla)}
                         className="bg-primary-brand hover:bg-primary-600 text-white px-3 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2 transition"
@@ -357,8 +539,6 @@ export default function PlantillasPage({ usuario }) {
                         <Pencil className="w-4 h-4" />
                         Editar
                       </button>
-                    )}
-                    {puedeGestionar && (
                       <button
                         onClick={() => eliminarPlantilla(plantilla.id)}
                         disabled={eliminando}
@@ -367,34 +547,52 @@ export default function PlantillasPage({ usuario }) {
                         <Trash2 className="w-4 h-4" />
                         Eliminar
                       </button>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
 
         <aside className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl p-6 h-fit">
           <div className="flex items-center gap-2 mb-4">
             <Eye className="w-5 h-5 text-primary-brand" />
-            <h2 className="text-lg font-bold text-white">Preview de Contenido</h2>
+            <h2 className="text-lg font-bold text-white">Detalles de Plantilla</h2>
           </div>
 
-          {plantillaPreview ? (
-            <div>
+          {plantillaPreview ? (() => {
+            const contenido = normalizarContenido(plantillaPreview.contenido || {})
+
+            return (
+              <div>
               <h3 className="font-semibold text-white mb-1">{plantillaPreview.nombre}</h3>
               <p className="text-sm text-neutral-400 mb-4">{plantillaPreview.descripcion || "Sin descripcion"}</p>
-              <pre className="bg-neutral-950 border border-neutral-700 rounded-lg p-4 text-xs text-neutral-200 overflow-auto max-h-[520px]">
-                {formatearJson(plantillaPreview.contenido)}
-              </pre>
+
+              <div className="bg-neutral-950 border border-neutral-700 rounded-lg p-4 mb-4">
+                <p className="text-xs font-semibold text-neutral-500 uppercase">Escala</p>
+                <p className="text-white font-semibold mt-1">{contenido.escala}</p>
+              </div>
+
+              <div className="space-y-3">
+                {contenido.niveles.map((nivel, index) => (
+                  <div key={`preview-${index}`} className="bg-neutral-950 border border-neutral-700 rounded-lg p-4">
+                    <p className="text-sm font-bold text-white">
+                      Nivel {index + 1}: {nivel.descripcion || "Sin descripcion"}
+                    </p>
+                    <p className="text-xs text-neutral-500 mt-2">
+                      Rango: {nivel.rango_min ?? "-"} a {nivel.rango_max ?? "-"}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
-          ) : (
-            <p className="text-neutral-400">Selecciona Preview en una plantilla para ver su JSON.</p>
+            )
+          })() : (
+            <p className="text-neutral-400">Selecciona Ver detalles en una plantilla.</p>
           )}
         </aside>
       </div>
     </div>
   )
 }
-

@@ -1,5 +1,17 @@
 ﻿from supabase import create_client, Client
 
+import os
+
+for proxy_var in (
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "all_proxy",
+):
+    os.environ.pop(proxy_var, None)
+
 # Credenciales de Supabase
 SUPABASE_URL = "https://skdzcvvkemitkavejvcc.supabase.co"
 SUPABASE_SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNrZHpjdnZrZW1pdGthdmVqdmNjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjcyMDIzNCwiZXhwIjoyMDg4Mjk2MjM0fQ.U6gToqNpMw1PVqzorjooIYuEY_wr6mOtMgrglVTuQrQ"

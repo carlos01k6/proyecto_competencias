@@ -19,7 +19,7 @@ export async function registrarAuditoria(datos) {
 export async function obtenerLogAuditoria(estudiante_id = null, limite = 100) {
   let url = `${API_URL}/log?limite=${limite}`
   if (estudiante_id) {
-    url += `&estudiante_id=${estudiante_id}`
+    url += `&student_id=${estudiante_id}`
   }
   
   const response = await axios.get(url, {

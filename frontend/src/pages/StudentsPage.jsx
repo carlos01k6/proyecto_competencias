@@ -1,12 +1,10 @@
-import React, { useState } from "react"
+import React from "react"
 import { useEstudiantes } from "../hooks/useStudents"
-import { Users, Plus, Trash2, Mail, Calendar } from "lucide-react"
+import { Users, Mail, Calendar } from "lucide-react"
 
 export default function EstudiantesPage({ usuario }) {
-  const [showAgregar, setShowAgregar] = useState(false)
-
   const rolUsuario = usuario?.rol?.toLowerCase()
-  const esTeacher = rolUsuario === "teacher"
+  const esTeacher = rolUsuario === "teacher" || rolUsuario === "docente"
 
   const { estudiantes, cargando, error } = useEstudiantes()
 
@@ -38,38 +36,15 @@ export default function EstudiantesPage({ usuario }) {
             </div>
             <div>
               <h1 className="text-4xl font-bold text-white">Mis Estudiantes</h1>
-              <p className="text-neutral-400">Gestiona los estudiantes de tus cursos</p>
+              <p className="text-neutral-400">Consulta los estudiantes asignados a tus cursos</p>
             </div>
           </div>
-          <button
-            onClick={() => setShowAgregar(!showAgregar)}
-            className="bg-gradient-to-r from-primary-brand to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition"
-          >
-            <Plus className="w-5 h-5" />
-            Agregar Estudiante
-          </button>
         </div>
       </div>
 
       {/* Tabla de Estudiantes */}
       <div>
         <div className="space-y-6">
-          {/* Agregar Estudiante Form */}
-          {showAgregar && (
-            <div className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl p-6">
-              <h3 className="text-lg font-bold text-white mb-4">Agregar Estudiante</h3>
-              <p className="text-neutral-400 text-sm">
-                Funcionalidad en desarrollo. Pronto podrás agregar estudiantes desde aquí.
-              </p>
-              <button
-                onClick={() => setShowAgregar(false)}
-                className="mt-4 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded-lg text-sm font-semibold transition"
-              >
-                Cancelar
-              </button>
-            </div>
-          )}
-
           {/* Tabla */}
           <div className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl overflow-hidden">
             {cargando ? (
@@ -93,7 +68,6 @@ export default function EstudiantesPage({ usuario }) {
                     <th className="px-6 py-4 text-left font-semibold text-neutral-300">Nombre</th>
                     <th className="px-6 py-4 text-left font-semibold text-neutral-300">Email</th>
                     <th className="px-6 py-4 text-left font-semibold text-neutral-300">Fecha Matrícula</th>
-                    <th className="px-6 py-4 text-right font-semibold text-neutral-300">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -107,11 +81,6 @@ export default function EstudiantesPage({ usuario }) {
                       <td className="px-6 py-4 text-neutral-400 flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
                         {est.fecha_matricula ? new Date(est.fecha_matricula).toLocaleDateString() : "---"}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button className="p-2 hover:bg-danger/10 rounded-lg transition text-danger opacity-0 group-hover:opacity-100">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </td>
                     </tr>
                   ))}

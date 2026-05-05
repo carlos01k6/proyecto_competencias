@@ -1,15 +1,69 @@
-import React, { useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { useLogAuditoria, useResumenDocente } from "../hooks/useAudit"
+import { obtenerUsuarios } from "../services/users"
 import { Shield } from "lucide-react"
 
 export default function AuditoriaPage({ usuario }) {
   const [tab, setTab] = useState("log")
   const [estudiante_id, setEstudiante_id] = useState("")
   const [docente_id, setDocente_id] = useState("")
+  const [usuarios, setUsuarios] = useState([])
+  const [cargandoUsuarios, setCargandoUsuarios] = useState(false)
+  const [errorUsuarios, setErrorUsuarios] = useState(null)
   const { log, cargando: cargandoLog } = useLogAuditoria(estudiante_id || null)
   const { resumen, cargando: cargandoResumen } = useResumenDocente(docente_id)
 
+  useEffect(() => {
+    const cargarUsuarios = async () => {
+      setCargandoUsuarios(true)
+      setErrorUsuarios(null)
+      try {
+        const data = await obtenerUsuarios()
+        setUsuarios(Array.isArray(data) ? data : [])
+      } catch (err) {
+        setUsuarios([])
+        setErrorUsuarios(err.response?.data?.error || err.message)
+      } finally {
+        setCargandoUsuarios(false)
+      }
+    }
+
+    cargarUsuarios()
+  }, [])
+
+  const estudiantes = useMemo(() => {
+    return usuarios.filter((user) => {
+      const role = (user.role || user.rol || "").toLowerCase()
+      return role === "student" || role === "estudiante"
+    })
+  }, [usuarios])
+
+  const docentes = useMemo(() => {
+    return usuarios.filter((user) => {
+      const role = (user.role || user.rol || "").toLowerCase()
+      return role === "teacher" || role === "docente"
+    })
+  }, [usuarios])
+
+  const usuariosPorId = useMemo(() => {
+    return Object.fromEntries(usuarios.map((user) => [user.id, user]))
+  }, [usuarios])
+
+  const obtenerNombreUsuario = (id) => {
+    const user = usuariosPorId[id]
+    return user?.nombre || user?.name || user?.email || id
+  }
+
+  const obtenerFechaRegistro = (registro) => {
+    return registro.fecha_registro || registro.action_date || registro.created_at
+  }
+
+  const obtenerAccion = (registro) => {
+    return registro.accion || registro.action
+  }
+
   const formatearFecha = (fecha) => {
+    if (!fecha) return "-"
     return new Date(fecha).toLocaleDateString("es-ES", {
       year: "numeric",
       month: "long",
@@ -74,15 +128,25 @@ export default function AuditoriaPage({ usuario }) {
         <div className="space-y-6">
           <div className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl p-6">
             <label className="block text-sm font-semibold text-white mb-3">
-              Filtrar por ID de Estudiante (opcional)
+              Filtrar por estudiante (opcional)
             </label>
-            <input
-              type="text"
+            <select
               value={estudiante_id}
               onChange={(e) => setEstudiante_id(e.target.value)}
-              placeholder="Ej: test-student-001"
               className="w-full bg-neutral-800/50 border border-neutral-700 text-white rounded-lg px-4 py-3 placeholder-neutral-500 focus:outline-none focus:border-primary-brand focus:ring-2 focus:ring-primary-brand/20 transition"
-            />
+            >
+              <option value="">
+                {cargandoUsuarios ? "Cargando estudiantes..." : "Todos los estudiantes"}
+              </option>
+              {estudiantes.map((estudiante) => (
+                <option key={estudiante.id} value={estudiante.id}>
+                  {estudiante.nombre || estudiante.name || estudiante.email} - {estudiante.email}
+                </option>
+              ))}
+            </select>
+            {errorUsuarios && (
+              <p className="text-danger text-sm mt-3">Error cargando usuarios: {errorUsuarios}</p>
+            )}
           </div>
 
           {cargandoLog ? (
@@ -116,21 +180,33 @@ export default function AuditoriaPage({ usuario }) {
                     {log.map((registro, idx) => (
                       <tr key={idx} className="border-b border-neutral-800/50 hover:bg-neutral-900/50 transition">
                         <td className="px-6 py-4 text-neutral-400 text-sm">
-                          {formatearFecha(registro.fecha_registro)}
+                          {formatearFecha(obtenerFechaRegistro(registro))}
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getAccionColor(registro.accion)}`}>
-                            {registro.accion?.toUpperCase()}
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getAccionColor(obtenerAccion(registro))}`}>
+                            {obtenerAccion(registro)?.toUpperCase() || "-"}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-white text-sm font-semibold">
-                          {registro.usuario_id?.substring(0, 8)}...
+                          {obtenerNombreUsuario(registro.usuario_id || registro.user_id)}
+                          <p className="text-xs text-neutral-500 font-normal">
+                            {(registro.usuario_id || registro.user_id)?.substring(0, 8) || "-"}...
+                          </p>
                         </td>
                         <td className="px-6 py-4 text-neutral-400 text-sm">
-                          {registro.estudiante_id || "-"}
+                          {registro.estudiante_id || registro.student_id ? (
+                            <>
+                              <span className="text-neutral-200">
+                                {obtenerNombreUsuario(registro.estudiante_id || registro.student_id)}
+                              </span>
+                              <p className="text-xs text-neutral-500">
+                                {(registro.estudiante_id || registro.student_id)?.substring(0, 8)}...
+                              </p>
+                            </>
+                          ) : "-"}
                         </td>
                         <td className="px-6 py-4 text-neutral-400 text-sm">
-                          {registro.criterio_id?.substring(0, 8) || "-"}...
+                          {(registro.criterio_id || registro.criteria_id)?.substring(0, 8) || "-"}...
                         </td>
                         <td className="px-6 py-4 text-white font-semibold">
                           {registro.calificacion_nueva ? `${registro.calificacion_nueva}/100` : "-"}
@@ -155,15 +231,25 @@ export default function AuditoriaPage({ usuario }) {
         <div className="space-y-6">
           <div className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl p-6">
             <label className="block text-sm font-semibold text-white mb-3">
-              ID del Docente
+              Docente
             </label>
-            <input
-              type="text"
+            <select
               value={docente_id}
               onChange={(e) => setDocente_id(e.target.value)}
-              placeholder="Ej: docente-uuid"
               className="w-full bg-neutral-800/50 border border-neutral-700 text-white rounded-lg px-4 py-3 placeholder-neutral-500 focus:outline-none focus:border-primary-brand focus:ring-2 focus:ring-primary-brand/20 transition"
-            />
+            >
+              <option value="">
+                {cargandoUsuarios ? "Cargando docentes..." : "Selecciona un docente"}
+              </option>
+              {docentes.map((docente) => (
+                <option key={docente.id} value={docente.id}>
+                  {docente.nombre || docente.name || docente.email} - {docente.email}
+                </option>
+              ))}
+            </select>
+            {errorUsuarios && (
+              <p className="text-danger text-sm mt-3">Error cargando usuarios: {errorUsuarios}</p>
+            )}
           </div>
 
           {cargandoResumen ? (
@@ -205,10 +291,10 @@ export default function AuditoriaPage({ usuario }) {
                     <div key={idx} className="flex items-center justify-between p-4 border border-neutral-700/50 rounded-lg hover:bg-neutral-900/50 transition">
                       <div>
                         <p className="font-semibold text-white">
-                          {registro.accion?.toUpperCase()} - {registro.tabla_afectada}
+                          {obtenerAccion(registro)?.toUpperCase() || "-"} - {registro.tabla_afectada}
                         </p>
                         <p className="text-sm text-neutral-500 mt-1">
-                          {formatearFecha(registro.fecha_registro)}
+                          {formatearFecha(obtenerFechaRegistro(registro))}
                         </p>
                       </div>
                       {registro.calificacion_nueva && (

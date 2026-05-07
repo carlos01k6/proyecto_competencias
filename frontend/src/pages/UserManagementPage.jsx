@@ -1,47 +1,96 @@
 import React, { useEffect, useState } from "react"
-import { Users } from "lucide-react"
+import { Users, UserPlus, X } from "lucide-react"
 import * as usuariosService from "../services/users"
+
+const ROLES = [
+  { value: "student", label: "Estudiante" },
+  { value: "teacher", label: "Docente" },
+  { value: "admin", label: "Administrador" },
+]
+
+const ROL_LABELS = { student: "Estudiante", teacher: "Docente", admin: "Administrador" }
+
+const ROL_COLORS = {
+  student: "bg-blue-500/20 text-blue-300 border border-blue-500/30",
+  teacher: "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30",
+  admin: "bg-purple-500/20 text-purple-300 border border-purple-500/30",
+}
+
+const FORM_INITIAL = { name: "", email: "", password: "", role: "student" }
 
 export default function GestionarUsuariosPage() {
   const [usuarios, setUsuarios] = useState([])
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState(null)
+  const [modalAbierto, setModalAbierto] = useState(false)
+  const [form, setForm] = useState(FORM_INITIAL)
+  const [guardando, setGuardando] = useState(false)
+  const [errorModal, setErrorModal] = useState(null)
 
-  useEffect(() => {
-    const cargarUsuarios = async () => {
-      setCargando(true)
-      setError(null)
-
-      try {
-        const data = await usuariosService.obtenerUsuarios()
-        setUsuarios(Array.isArray(data) ? data : [])
-      } catch (err) {
-        setUsuarios([])
-        setError(err.response?.data?.error || err.message)
-      } finally {
-        setCargando(false)
-      }
+  const cargarUsuarios = async () => {
+    setCargando(true)
+    setError(null)
+    try {
+      const data = await usuariosService.obtenerUsuarios()
+      setUsuarios(Array.isArray(data) ? data : [])
+    } catch (err) {
+      setUsuarios([])
+      setError(err.response?.data?.error || err.message)
+    } finally {
+      setCargando(false)
     }
+  }
 
-    cargarUsuarios()
-  }, [])
+  useEffect(() => { cargarUsuarios() }, [])
 
   const formatearFecha = (fecha) => {
     if (!fecha) return "Sin fecha"
-
     const date = new Date(fecha)
     if (Number.isNaN(date.getTime())) return "Sin fecha"
+    return date.toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" })
+  }
 
-    return date.toLocaleDateString("es-ES", {
-      year: "numeric",
-      month: "long",
-      day: "numeric"
-    })
+  const abrirModal = () => {
+    setForm(FORM_INITIAL)
+    setErrorModal(null)
+    setModalAbierto(true)
+  }
+
+  const cerrarModal = () => {
+    if (guardando) return
+    setModalAbierto(false)
+  }
+
+  const handleChange = (e) => {
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setErrorModal(null)
+    if (!form.name.trim() || !form.email.trim() || !form.password.trim()) {
+      setErrorModal("Todos los campos son requeridos.")
+      return
+    }
+    if (form.password.length < 6) {
+      setErrorModal("La contraseña debe tener al menos 6 caracteres.")
+      return
+    }
+    setGuardando(true)
+    try {
+      await usuariosService.crearUsuario(form)
+      setModalAbierto(false)
+      await cargarUsuarios()
+    } catch (err) {
+      setErrorModal(err.response?.data?.error || err.message)
+    } finally {
+      setGuardando(false)
+    }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 p-6 md:p-8">
-      <div className="mb-8">
+      <div className="mb-8 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-gradient-to-br from-emerald-600 to-emerald-700 rounded-lg">
             <Users className="w-6 h-6 text-white" />
@@ -51,11 +100,18 @@ export default function GestionarUsuariosPage() {
             <p className="text-neutral-400">Usuarios registrados en el sistema</p>
           </div>
         </div>
+        <button
+          onClick={abrirModal}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg transition"
+        >
+          <UserPlus className="w-4 h-4" />
+          Crear Usuario
+        </button>
       </div>
 
       {error && (
-        <div className="bg-danger/10 border border-danger/30 rounded-lg p-4 mb-6">
-          <p className="text-danger font-semibold">Error: {error}</p>
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6">
+          <p className="text-red-400 font-semibold">Error: {error}</p>
         </div>
       )}
 
@@ -80,7 +136,11 @@ export default function GestionarUsuariosPage() {
                   <tr key={usuario.id || usuario.email} className="border-b border-neutral-800/50 hover:bg-neutral-900/50 transition">
                     <td className="px-6 py-4 text-white font-semibold">{usuario.email || "N/A"}</td>
                     <td className="px-6 py-4 text-neutral-300">{usuario.nombre || "N/A"}</td>
-                    <td className="px-6 py-4 text-neutral-300">{usuario.role || "N/A"}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${ROL_COLORS[usuario.role] || "bg-neutral-700 text-neutral-300"}`}>
+                        {ROL_LABELS[usuario.role] || usuario.role || "N/A"}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 text-neutral-400">{formatearFecha(usuario.created_at)}</td>
                   </tr>
                 ))}
@@ -89,6 +149,96 @@ export default function GestionarUsuariosPage() {
           </div>
         )}
       </div>
+
+      {/* Modal crear usuario */}
+      {modalAbierto && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-neutral-900 border border-neutral-700/50 rounded-2xl shadow-2xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between p-6 border-b border-neutral-700/50">
+              <h2 className="text-xl font-bold text-white">Crear Usuario</h2>
+              <button onClick={cerrarModal} className="text-neutral-400 hover:text-white transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {errorModal && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                  <p className="text-red-400 text-sm">{errorModal}</p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-1">Nombre completo</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder="Ej: Juan Pérez"
+                  className="w-full bg-neutral-800 border border-neutral-600 rounded-lg px-4 py-2 text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-1">Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="usuario@ejemplo.com"
+                  className="w-full bg-neutral-800 border border-neutral-600 rounded-lg px-4 py-2 text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-1">Contraseña</label>
+                <input
+                  type="password"
+                  name="password"
+                  value={form.password}
+                  onChange={handleChange}
+                  placeholder="Mínimo 6 caracteres"
+                  className="w-full bg-neutral-800 border border-neutral-600 rounded-lg px-4 py-2 text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-1">Rol</label>
+                <select
+                  name="role"
+                  value={form.role}
+                  onChange={handleChange}
+                  className="w-full bg-neutral-800 border border-neutral-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500 transition"
+                >
+                  {ROLES.map((r) => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={cerrarModal}
+                  disabled={guardando}
+                  className="flex-1 px-4 py-2 border border-neutral-600 text-neutral-300 rounded-lg hover:bg-neutral-800 transition disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={guardando}
+                  className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg transition disabled:opacity-50"
+                >
+                  {guardando ? "Creando..." : "Crear Usuario"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

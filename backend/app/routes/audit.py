@@ -119,6 +119,64 @@ def obtener_log_auditoria():
         print(f"ERROR OBTENER AUDITORIA: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+# BACKFILL: generar registros de auditoría desde evaluaciones existentes
+@auditoria_bp.route('/backfill', methods=['POST'])
+def backfill_auditoria():
+    try:
+        usuario_id = get_user_id_from_token()
+        if not usuario_id:
+            return jsonify({'error': 'No autorizado'}), 401
+
+        # Verificar que sea admin
+        role = get_user_role_from_token()
+        if role not in ['admin']:
+            return jsonify({'error': 'Solo el administrador puede ejecutar el backfill'}), 403
+
+        # Leer todas las evaluaciones existentes
+        evals_response = supabase.table('evaluations').select('*').execute()
+        evaluaciones = evals_response.data or []
+
+        # Verificar cuáles ya tienen registro en audits para no duplicar
+        audits_response = supabase.table('audits').select('record_id').execute()
+        ya_auditados = {r.get('record_id') for r in (audits_response.data or [])}
+
+        insertados = 0
+        for ev in evaluaciones:
+            ev_id = ev.get('id')
+            if ev_id in ya_auditados:
+                continue
+
+            auditoria_data = {
+                'user_id': ev.get('teacher_id') or usuario_id,
+                'action': 'crear',
+                'tabla_afectada': 'evaluations',
+                'record_id': ev_id,
+                'student_id': ev.get('student_id'),
+                'criteria_id': ev.get('criteria_id'),
+                'calificacion_anterior': None,
+                'calificacion_nueva': ev.get('grade'),
+                'observation': ev.get('observation') or 'Registro histórico',
+                'action_date': ev.get('grading_date') or ev.get('created_at') or datetime.now().isoformat()
+            }
+
+            try:
+                supabase.table('audits').insert(auditoria_data).execute()
+                insertados += 1
+            except Exception as e:
+                print(f"Error insertando audit para eval {ev_id}: {e}")
+
+        return jsonify({
+            'mensaje': f'Backfill completado: {insertados} registros de auditoría creados',
+            'total_evaluaciones': len(evaluaciones),
+            'insertados': insertados,
+            'ya_existian': len(evaluaciones) - insertados
+        }), 200
+
+    except Exception as e:
+        print(f"ERROR BACKFILL AUDITORIA: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
 # OBTENER RESUMEN DE AUDITORÍA POR DOCENTE
 @auditoria_bp.route('/resumen-docente/<docente_id>', methods=['GET'])
 @requiere_admin_o_docente()

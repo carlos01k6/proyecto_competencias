@@ -15,3 +15,10 @@ export async function obtenerUsuarios() {
   })
   return response.data || []
 }
+
+export async function crearUsuario({ email, password, name, role }) {
+  const response = await axios.post(API_URL, { email, password, name, role }, {
+    headers: getAuthHeader()
+  })
+  return response.data
+}

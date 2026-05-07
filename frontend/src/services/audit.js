@@ -35,3 +35,10 @@ export async function obtenerResumenDocente(docente_id) {
   return response.data || {}
 }
 
+export async function ejecutarBackfill() {
+  const response = await axios.post(`${API_URL}/backfill`, {}, {
+    headers: getAuthHeader()
+  })
+  return response.data
+}
+

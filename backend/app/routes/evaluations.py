@@ -9,6 +9,26 @@ evaluaciones_bp = Blueprint('evaluations', __name__, url_prefix='/api/evaluacion
 supabase: Client = get_supabase()
 
 
+def _registrar_auditoria(user_id, action, record_id, student_id, criteria_id,
+                          calificacion_anterior=None, calificacion_nueva=None, observation=None):
+    try:
+        from datetime import datetime
+        supabase.table('audits').insert({
+            'user_id': user_id,
+            'action': action,
+            'tabla_afectada': 'evaluations',
+            'record_id': record_id,
+            'student_id': student_id,
+            'criteria_id': criteria_id,
+            'calificacion_anterior': calificacion_anterior,
+            'calificacion_nueva': calificacion_nueva,
+            'observation': observation,
+            'action_date': datetime.now().isoformat()
+        }).execute()
+    except Exception as e:
+        print(f"AUDITORIA (no crítico): {e}")
+
+
 def get_user_id_from_token():
     token = request.headers.get('Authorization', '').replace('Bearer ', '')
     if not token:
@@ -224,11 +244,21 @@ def crear_evaluacion():
         }
         
         response = supabase.table('evaluations').insert(nueva_evaluacion).execute()
-        
-        # Calcular y actualizar promedio después de cada evaluación
+        creada = response.data[0] if response.data else nueva_evaluacion
+
+        _registrar_auditoria(
+            user_id=data.get('teacher_id') or get_user_id_from_token(),
+            action='crear',
+            record_id=creada.get('id'),
+            student_id=data.get('student_id'),
+            criteria_id=data.get('criteria_id'),
+            calificacion_nueva=calificacion,
+            observation=data.get('observation')
+        )
+
         actualizar_promedio_resultado(data.get('student_id'), data.get('learning_outcome_id'))
-        
-        return jsonify(response.data[0]), 201
+
+        return jsonify(creada), 201
     except Exception as e:
         print(f"ERROR CREAR EVALUACIÓN: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -277,14 +307,34 @@ def calificar_actividad():
             'grading_date': data.get('evaluation_date') or data.get('grading_date')
         }
 
+        teacher_id = data.get('teacher_id') or get_user_id_from_token()
+
         if existente_response.data:
-            response = supabase.table('evaluations').update(payload).eq('id', existente_response.data[0]['id']).execute()
+            eval_existente = existente_response.data[0]
+            cal_anterior_resp = supabase.table('evaluations').select('grade').eq('id', eval_existente['id']).limit(1).execute()
+            cal_anterior = cal_anterior_resp.data[0].get('grade') if cal_anterior_resp.data else None
+            response = supabase.table('evaluations').update(payload).eq('id', eval_existente['id']).execute()
+            action = 'actualizar'
         else:
+            cal_anterior = None
             payload['id'] = str(uuid.uuid4())
             response = supabase.table('evaluations').insert(payload).execute()
+            action = 'crear'
+
+        resultado = response.data[0] if response.data else payload
+        _registrar_auditoria(
+            user_id=teacher_id,
+            action=action,
+            record_id=resultado.get('id'),
+            student_id=student_id,
+            criteria_id=criteria_id,
+            calificacion_anterior=cal_anterior,
+            calificacion_nueva=calificacion,
+            observation=data.get('observation')
+        )
 
         actualizar_promedio_resultado(student_id, learning_outcome_id)
-        return jsonify(response.data[0] if response.data else payload), 200
+        return jsonify(resultado), 200
     except Exception as e:
         print(f"ERROR CALIFICAR ACTIVIDAD: {str(e)}")
         return jsonify({'error': str(e)}), 500
@@ -313,17 +363,29 @@ def actualizar_evaluacion(evaluacion_id):
             'grading_date': data.get('evaluation_date') or data.get('grading_date')
         }
         
+        cal_anterior_resp = supabase.table('evaluations').select('grade, student_id, criteria_id').eq('id', evaluacion_id).limit(1).execute()
+        cal_anterior = cal_anterior_resp.data[0].get('grade') if cal_anterior_resp.data else None
+
         response = supabase.table('evaluations').update(actualizacion).eq('id', evaluacion_id).execute()
-        
-        # Recalcular promedio
-        if response.data:
-            evaluacion = response.data[0]
-            actualizar_promedio_resultado(evaluacion.get('student_id'), data.get('learning_outcome_id'))
-        
+
         if not response.data:
             return jsonify({'error': 'Evaluacion no encontrada'}), 404
 
-        return jsonify({'success': True, **response.data[0]}), 200
+        evaluacion = response.data[0]
+        _registrar_auditoria(
+            user_id=get_user_id_from_token(),
+            action='actualizar',
+            record_id=evaluacion_id,
+            student_id=evaluacion.get('student_id'),
+            criteria_id=evaluacion.get('criteria_id'),
+            calificacion_anterior=cal_anterior,
+            calificacion_nueva=calificacion,
+            observation=data.get('observation')
+        )
+
+        actualizar_promedio_resultado(evaluacion.get('student_id'), data.get('learning_outcome_id'))
+
+        return jsonify({'success': True, **evaluacion}), 200
     except Exception as e:
         print(f"ERROR ACTUALIZAR EVALUACIÓN: {str(e)}")
         return jsonify({'error': str(e)}), 500

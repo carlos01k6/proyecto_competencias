@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react"
 import { useLogAuditoria, useResumenDocente } from "../hooks/useAudit"
 import { obtenerUsuarios } from "../services/users"
-import { Shield } from "lucide-react"
+import { ejecutarBackfill } from "../services/audit"
+import { Shield, RefreshCw } from "lucide-react"
 
 export default function AuditoriaPage({ usuario }) {
   const [tab, setTab] = useState("log")
@@ -10,8 +11,29 @@ export default function AuditoriaPage({ usuario }) {
   const [usuarios, setUsuarios] = useState([])
   const [cargandoUsuarios, setCargandoUsuarios] = useState(false)
   const [errorUsuarios, setErrorUsuarios] = useState(null)
-  const { log, cargando: cargandoLog } = useLogAuditoria(estudiante_id || null)
+  const [backfillando, setBackfillando] = useState(false)
+  const [mensajeBackfill, setMensajeBackfill] = useState(null)
+  const { log, cargando: cargandoLog, obtenerLog: recargarLog } = useLogAuditoria(estudiante_id || null)
   const { resumen, cargando: cargandoResumen } = useResumenDocente(docente_id)
+
+  const esAdmin = useMemo(() => {
+    const rol = (usuario?.rol || usuario?.role || "").toLowerCase()
+    return rol === "admin"
+  }, [usuario])
+
+  const handleBackfill = async () => {
+    setBackfillando(true)
+    setMensajeBackfill(null)
+    try {
+      const resultado = await ejecutarBackfill()
+      setMensajeBackfill(resultado.mensaje || "Backfill completado")
+      recargarLog?.()
+    } catch (err) {
+      setMensajeBackfill(err.response?.data?.error || "Error al ejecutar backfill")
+    } finally {
+      setBackfillando(false)
+    }
+  }
 
   useEffect(() => {
     const cargarUsuarios = async () => {
@@ -88,15 +110,32 @@ export default function AuditoriaPage({ usuario }) {
     <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 p-6 md:p-8">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-3 bg-gradient-to-br from-red-600 to-red-700 rounded-lg">
-            <Shield className="w-6 h-6 text-white" />
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-red-600 to-red-700 rounded-lg">
+              <Shield className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold text-white">Auditoría del Sistema</h1>
+              <p className="text-neutral-400">Registro de cambios y actividades en el sistema</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-4xl font-bold text-white">Auditoría del Sistema</h1>
-            <p className="text-neutral-400">Registro de cambios y actividades en el sistema</p>
-          </div>
+          {esAdmin && (
+            <button
+              onClick={handleBackfill}
+              disabled={backfillando}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg transition disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${backfillando ? "animate-spin" : ""}`} />
+              {backfillando ? "Sincronizando..." : "Sincronizar datos históricos"}
+            </button>
+          )}
         </div>
+        {mensajeBackfill && (
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg px-4 py-3">
+            <p className="text-blue-300 text-sm">{mensajeBackfill}</p>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}

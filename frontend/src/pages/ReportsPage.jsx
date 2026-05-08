@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import { useReportes } from "../hooks/useReports"
 import { BarChart3, Download, Filter, Calendar, TrendingUp } from "lucide-react"
+import ReportesCompetenciasPage from "./ReportesCompetenciasPage"
 
 export default function ReportesPage({ usuario }) {
   const { reportes, cargando, obtenerReportes } = useReportes()
@@ -8,6 +9,7 @@ export default function ReportesPage({ usuario }) {
   const [tipo, setTipo] = useState("general")
   const [fechaInicio, setFechaInicio] = useState("")
   const [fechaFin, setFechaFin] = useState("")
+  const [tab, setTab] = useState("general")
 
   const rolUsuario = usuario?.rol?.toLowerCase()
   const esAdmin = rolUsuario === "admin"
@@ -83,7 +85,31 @@ export default function ReportesPage({ usuario }) {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Tabs */}
+      {esAdmin && (
+        <div className="flex gap-1 mb-8 p-1 bg-neutral-800/30 rounded-xl border border-neutral-700/30">
+          <button
+            onClick={() => setTab("general")}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+              tab === "general" ? "bg-emerald-600 text-white" : "text-neutral-400 hover:text-white"
+            }`}
+          >
+            Reportes Generales
+          </button>
+          <button
+            onClick={() => setTab("competencias")}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+              tab === "competencias" ? "bg-emerald-600 text-white" : "text-neutral-400 hover:text-white"
+            }`}
+          >
+            Análisis de Competencias
+          </button>
+        </div>
+      )}
+
+      {tab === "competencias" && esAdmin ? (
+        <ReportesCompetenciasPage usuario={usuario} />
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {stats.map((stat, idx) => (
           <div key={idx} className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl p-6 hover:border-primary-brand/30 transition">

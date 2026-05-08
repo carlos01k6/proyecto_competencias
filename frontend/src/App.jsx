@@ -33,6 +33,11 @@ import GestionarUsuariosPage from './pages/UserManagementPage'
 import RolesPermisoPage from './pages/RolePermissionsPage'
 import AsistenciaPage from './pages/AttendancePage'
 import ExportarPage from './pages/ExportPage'
+import AdminCoursesPage from './pages/AdminCoursesPage'
+import AlertasPage from './pages/AlertasPage'
+import HistorialEstudiantePage from './pages/HistorialEstudiantePage'
+import MatrizCompetenciasPage from './pages/MatrizCompetenciasPage'
+import ReportesCompetenciasPage from './pages/ReportesCompetenciasPage'
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('acceso_token')
@@ -91,6 +96,11 @@ function App() {
                     <Route path="/roles" element={<RolesPermisoPage usuario={usuario} />} />
                     <Route path="/asistencia" element={<AsistenciaPage usuario={usuario} />} />
                     <Route path="/exportar" element={<ExportarPage usuario={usuario} />} />
+                    <Route path="/admin-cursos" element={<AdminCoursesPage usuario={usuario} />} />
+                    <Route path="/alertas" element={<AlertasPage usuario={usuario} />} />
+                    <Route path="/historial/:estudianteId" element={<HistorialEstudiantePage usuario={usuario} />} />
+                    <Route path="/matriz-competencias" element={<MatrizCompetenciasPage usuario={usuario} />} />
+                    <Route path="/reportes-competencias" element={<ReportesCompetenciasPage usuario={usuario} />} />
                   </Routes>
                 </Layout>
               </ProtectedRoute>

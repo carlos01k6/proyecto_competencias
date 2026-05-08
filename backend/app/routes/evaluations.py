@@ -4,6 +4,7 @@ from ..supabase_client import get_supabase
 import uuid
 import math
 import jwt
+import requests
 
 evaluaciones_bp = Blueprint('evaluations', __name__, url_prefix='/api/evaluaciones')
 supabase: Client = get_supabase()
@@ -257,6 +258,23 @@ def crear_evaluacion():
         )
 
         actualizar_promedio_resultado(data.get('student_id'), data.get('learning_outcome_id'))
+
+        # Crear snapshot de progreso
+        try:
+            crit_res = supabase.table('criteria').select('learning_outcome_id').eq('id', data.get('criteria_id')).execute()
+            lo_id = crit_res.data[0].get('learning_outcome_id') if crit_res.data else None
+            if lo_id:
+                lo_res = supabase.table('learning_outcomes').select('competency_id').eq('id', lo_id).execute()
+                comp_id = lo_res.data[0].get('competency_id') if lo_res.data else None
+                if comp_id:
+                    # Llamar a crear snapshot
+                    import requests
+                    base_url = request.host_url.rstrip('/')
+                    requests.post(f"{base_url}/api/historial/crear-snapshot/{data.get('student_id')}/{comp_id}", 
+                                  json={'fecha': nueva_evaluacion.get('grading_date')}, 
+                                  headers={'Authorization': request.headers.get('Authorization')})
+        except Exception as snap_e:
+            print(f"Error creando snapshot: {snap_e}")
 
         return jsonify(creada), 201
     except Exception as e:

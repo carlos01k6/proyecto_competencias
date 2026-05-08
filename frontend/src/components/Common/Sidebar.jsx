@@ -1,9 +1,9 @@
 ﻿import React, { useState } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { 
-  Home, BookOpen, FileText, BarChart3, Award, CheckSquare, TrendingUp, 
+  Home, BookOpen, FileText, BarChart3, Award, CheckSquare, TrendingUp,
   ClipboardList, Settings, Calendar, ChevronDown, Zap, LogOut, Users,
-  GraduationCap, FileCheck, CalendarCheck, Download
+  GraduationCap, FileCheck, CalendarCheck, Download, Bell, Grid3x3, History
 } from "lucide-react"
 
 export default function Sidebar({ usuario, onToggleExpand }) {
@@ -50,6 +50,14 @@ export default function Sidebar({ usuario, onToggleExpand }) {
         ]
       },
       {
+        title: "Cursos",
+        icon: BookOpen,
+        color: "from-cyan-500 to-cyan-600",
+        items: [
+          { path: "/admin-cursos", label: "Cursos Registrados", icon: BookOpen }
+        ]
+      },
+      {
         title: "Usuarios",
         icon: Users,
         color: "from-emerald-500 to-emerald-600",
@@ -64,6 +72,7 @@ export default function Sidebar({ usuario, onToggleExpand }) {
         color: "from-amber-500 to-amber-600",
         items: [
           { path: "/reportes-director", label: "Reportes Dirección", icon: BarChart3 },
+          { path: "/reportes-competencias", label: "Análisis de Competencias", icon: BookOpen },
           { path: "/exportar", label: "Exportación", icon: Download },
           { path: "/auditoria", label: "Auditoría", icon: FileText }
         ]
@@ -88,7 +97,8 @@ export default function Sidebar({ usuario, onToggleExpand }) {
         icon: Home,
         color: "from-blue-500 to-blue-600",
         items: [
-          { path: "/", label: "Dashboard", icon: Home }
+          { path: "/", label: "Dashboard", icon: Home },
+          { path: "/alertas", label: "Alertas de Desempeño", icon: Bell }
         ]
       },
       {
@@ -107,8 +117,10 @@ export default function Sidebar({ usuario, onToggleExpand }) {
         items: [
           { path: "/competencias", label: "Competencias", icon: BookOpen },
           { path: "/actividades", label: "Actividades", icon: ClipboardList },
+          { path: "/criterios", label: "Criterios", icon: Award },
           { path: "/mis-rubricas", label: "Mis Rúbricas", icon: CheckSquare },
-          { path: "/plantillas", label: "Plantillas", icon: FileCheck }
+          { path: "/plantillas", label: "Plantillas", icon: FileCheck },
+          { path: "/evidencias-proyecto", label: "Evidencias de Proyecto", icon: FileText }
         ]
       },
       {
@@ -128,6 +140,7 @@ export default function Sidebar({ usuario, onToggleExpand }) {
         color: "from-amber-500 to-amber-600",
         items: [
           { path: "/grupo-seguimiento", label: "Progreso del Grupo", icon: BarChart3 },
+          { path: "/matriz-competencias", label: "Matriz Competencias", icon: Grid3x3 },
           { path: "/improvement-plans", label: "Planes de Mejora", icon: ClipboardList },
           { path: "/boletin", label: "Boletines", icon: FileText },
           { path: "/exportar", label: "Exportación", icon: Download }

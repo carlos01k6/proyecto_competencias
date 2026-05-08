@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { useEvaluaciones } from "../hooks/useEvaluations"
 import { useCompetencias } from "../hooks/useCompetencies"
 import * as evaluacionesService from "../services/evaluations"
@@ -7,6 +8,7 @@ import FormularioCalificacion from "../components/Evaluations/GradeForm"
 import { BarChart3 } from "lucide-react"
 
 export default function EvaluacionesPage({ usuario }) {
+  const navigate = useNavigate()
   const [competenciaSeleccionada, setCompetenciaSeleccionada] = useState(null)
   const [estudianteSeleccionado, setEstudianteSeleccionado] = useState(null)
   const [criteriosDelResultado, setCriteriosDelResultado] = useState([])
@@ -233,6 +235,15 @@ export default function EvaluacionesPage({ usuario }) {
                   </option>
                 ))}
               </select>
+              {estudianteSeleccionado && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/historial/${estudianteSeleccionado.id}`)}
+                  className="mt-3 w-full bg-amber-600 hover:bg-amber-500 text-white rounded-lg px-4 py-3 font-semibold transition"
+                >
+                  Ver Historial del Estudiante
+                </button>
+              )}
             </div>
           </form>
 

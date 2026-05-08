@@ -40,6 +40,10 @@ from .routes.attendance import asistencia_bp
 from .routes.export import exportacion_bp
 from .routes.emails import correos_bp, mail
 from .routes.notificaciones import notificaciones_bp
+from .routes.alertas import alertas_bp
+from .routes.historial import historial_bp
+from .routes.matriz_competencias import matriz_bp
+from .routes.reportes_competencias import reportes_comp_bp
 
 
 def get_user_role_from_token():
@@ -124,6 +128,10 @@ def create_app():
     app.register_blueprint(exportacion_bp)
     app.register_blueprint(correos_bp)
     app.register_blueprint(notificaciones_bp)
+    app.register_blueprint(alertas_bp)
+    app.register_blueprint(historial_bp)
+    app.register_blueprint(matriz_bp)
+    app.register_blueprint(reportes_comp_bp)
 
     with app.app_context():
         db.create_all()

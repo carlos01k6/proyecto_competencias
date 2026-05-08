@@ -9,6 +9,18 @@ re_evaluations_bp = Blueprint('re_evaluations', __name__, url_prefix='/api/re-ev
 re_evaluations_es_bp = Blueprint('re_evaluations_es', __name__, url_prefix='/api/re-evaluaciones')
 supabase: Client = get_supabase()
 
+
+def get_umbral_reevaluacion():
+    """Lee el umbral mínimo de re-evaluación desde configuration. Default: 65."""
+    try:
+        res = supabase.table('configuration').select('value').eq('key', 'umbral_reevaluacion').execute()
+        if res.data:
+            return float(res.data[0]['value'])
+    except Exception:
+        pass
+    return 65.0
+
+
 def is_valid_uuid(value):
     try:
         uuid.UUID(str(value))
@@ -92,30 +104,42 @@ def normalize_history_row(evaluation):
 
 
 def obtener_pendientes_fallback(docente_id):
-    student_ids = []
-    cursos_response = supabase.table('cursos').select('id').eq('docente_id', docente_id).execute()
-    curso_ids = [curso['id'] for curso in (cursos_response.data or []) if curso.get('id')]
-    if curso_ids:
-        estudiantes_response = supabase.table('estudiante_curso').select('estudiante_id').in_('curso_id', curso_ids).execute()
-        student_ids = list({item['estudiante_id'] for item in (estudiantes_response.data or []) if item.get('estudiante_id')})
-
-    query = supabase.table('evaluations').select('id, student_id, criteria_id, grade').lt('grade', 70)
-    if student_ids:
-        query = query.in_('student_id', student_ids)
-    elif docente_id:
+    umbral = get_umbral_reevaluacion()
+    # Query directa por teacher_id para evitar cadena de joins que causa timeout
+    query = (
+        supabase.table('evaluations')
+        .select('id, student_id, criteria_id, grade, teacher_id')
+        .lt('grade', umbral)
+        .limit(200)
+    )
+    if docente_id:
         query = query.eq('teacher_id', docente_id)
 
     response = query.execute()
+    evaluaciones = response.data or []
+
+    # Obtener criterios en batch
+    criteria_ids = list({e.get('criteria_id') for e in evaluaciones if e.get('criteria_id')})
+    criteria_map = {}
+    if criteria_ids:
+        cr = supabase.table('criteria').select('id, name, learning_outcome_id').in_('id', criteria_ids).execute()
+        for c in cr.data or []:
+            criteria_map[c['id']] = c.get('name') or c['id']
+
     pendientes = []
-    for evaluation in response.data or []:
-        context = get_criteria_context(evaluation.get('criteria_id'))
+    seen = set()
+    for ev in evaluaciones:
+        key = (ev.get('student_id'), ev.get('criteria_id'))
+        if key in seen:
+            continue
+        seen.add(key)
         pendientes.append({
-            'id': evaluation.get('id'),
-            'student_id': evaluation.get('student_id'),
-            'criteria_id': evaluation.get('criteria_id'),
-            'criteria_name': context['criteria_name'],
-            'competency_name': context['competency_name'],
-            'calificacion_anterior': evaluation.get('grade'),
+            'id': ev.get('id'),
+            'student_id': ev.get('student_id'),
+            'criteria_id': ev.get('criteria_id'),
+            'criteria_name': criteria_map.get(ev.get('criteria_id'), ''),
+            'competency_name': '',
+            'calificacion_anterior': ev.get('grade'),
             'estado': 'pendiente'
         })
     return pendientes
@@ -216,10 +240,11 @@ def obtener_disponibles_reevaluar():
         if not user_id:
             return jsonify({'error': 'No autorizado'}), 401
 
+        umbral = get_umbral_reevaluacion()
         evaluations_response = (
             supabase.table('evaluations')
             .select('student_id, criteria_id, grade')
-            .lt('grade', 70)
+            .lt('grade', umbral)
             .order('student_id')
             .execute()
         )

@@ -70,6 +70,54 @@ def convertir_calificacion(calificacion):
         print(f"ERROR CONVERTIR CALIFICACION: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+# OBTENER / ACTUALIZAR UMBRAL DE RE-EVALUACIÓN
+@escalas_bp.route('/umbral', methods=['GET'])
+def obtener_umbral():
+    try:
+        res = supabase.table('configuration').select('value').eq('key', 'umbral_reevaluacion').execute()
+        valor = float(res.data[0]['value']) if res.data else 65.0
+        return jsonify({'umbral': valor}), 200
+    except Exception as e:
+        return jsonify({'umbral': 65.0}), 200
+
+
+@escalas_bp.route('/umbral', methods=['PUT'])
+def actualizar_umbral():
+    try:
+        usuario_id = get_user_id_from_token()
+        if not usuario_id:
+            return jsonify({'error': 'No autorizado'}), 401
+
+        user_response = supabase.table('users').select('role').eq('id', usuario_id).execute()
+        if not user_response.data or user_response.data[0]['role'].lower() != 'admin':
+            return jsonify({'error': 'Solo administradores pueden cambiar el umbral'}), 403
+
+        data = request.get_json() or {}
+        try:
+            nuevo_umbral = float(data.get('umbral', 65))
+        except (TypeError, ValueError):
+            return jsonify({'error': 'umbral debe ser numérico'}), 400
+
+        if nuevo_umbral < 1 or nuevo_umbral > 99:
+            return jsonify({'error': 'El umbral debe estar entre 1 y 99'}), 400
+
+        existing = supabase.table('configuration').select('id').eq('key', 'umbral_reevaluacion').execute()
+        if existing.data:
+            supabase.table('configuration').update({'value': str(nuevo_umbral)}).eq('key', 'umbral_reevaluacion').execute()
+        else:
+            supabase.table('configuration').insert({
+                'key': 'umbral_reevaluacion',
+                'value': str(nuevo_umbral),
+                'description': 'Umbral mínimo de calificación para re-evaluación (0-100)',
+            }).execute()
+
+        return jsonify({'umbral': nuevo_umbral, 'mensaje': f'Umbral actualizado a {nuevo_umbral}'}), 200
+
+    except Exception as e:
+        print(f"ERROR ACTUALIZAR UMBRAL: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
 # ACTUALIZAR ESCALA (SOLO ADMIN)
 @escalas_bp.route('/actualizar', methods=['POST'])
 def actualizar_escala():

@@ -102,8 +102,13 @@ export default function EvidenciasPage({ usuario }) {
   const handleDescargar = async (evidencia_id) => {
     try {
       const data = await evidenciasService.descargarEvidencia(evidencia_id)
-      if (data.file_url) {
-        window.open(data.file_url, "_blank", "noopener,noreferrer")
+      const url = data.file_url
+      if (url && (url.startsWith("http://") || url.startsWith("https://"))) {
+        window.open(url, "_blank", "noopener,noreferrer")
+      } else if (url) {
+        alert(`Nombre del archivo: ${url}\n\nEl archivo fue subido sin URL de almacenamiento en la nube. Para descargarlo necesitas acceso directo al servidor.`)
+      } else {
+        alert("Esta evidencia no tiene archivo adjunto disponible para descargar.")
       }
     } catch (error) {
       alert("Error al descargar: " + (error.response?.data?.error || error.message))

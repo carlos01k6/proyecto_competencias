@@ -1,6 +1,25 @@
 import React, { useState, useEffect } from "react"
+import axios from "axios"
 import { useEscalaActual, useActualizarEscala, useConvertirCalificacion } from "../hooks/useScales"
-import { Ruler } from "lucide-react"
+import { Ruler, Save, AlertTriangle } from "lucide-react"
+
+const BASE_URL = "http://localhost:5000"
+function getHeaders() {
+  const t = localStorage.getItem("acceso_token")
+  return t ? { Authorization: `Bearer ${t}` } : {}
+}
+
+function formatUmbral(valor, escala) {
+  if (escala === "0-4") return `${(valor / 100 * 4).toFixed(2)} / 4`
+  if (escala === "A-F") {
+    if (valor >= 90) return "A (Excelente)"
+    if (valor >= 80) return "B (Bueno)"
+    if (valor >= 70) return "C (Regular)"
+    if (valor >= 60) return "D (Deficiente)"
+    return "F (Insuficiente)"
+  }
+  return `${valor} / 100`
+}
 
 export default function EscalasPage({ usuario }) {
   const { escala, obtenerEscala } = useEscalaActual()
@@ -8,6 +27,46 @@ export default function EscalasPage({ usuario }) {
   const [nuevaEscala, setNuevaEscala] = useState("")
   const [ejemploCalificacion, setEjemploCalificacion] = useState(85)
   const { convertida } = useConvertirCalificacion(ejemploCalificacion)
+
+  // Umbral de re-evaluación
+  const [umbral, setUmbral] = useState(65)
+  const [umbralInput, setUmbralInput] = useState("65")
+  const [guardandoUmbral, setGuardandoUmbral] = useState(false)
+  const [umbralMsg, setUmbralMsg] = useState(null)
+
+  useEffect(() => {
+    axios.get(`${BASE_URL}/api/escalas/umbral`, { headers: getHeaders() })
+      .then(r => {
+        const v = parseFloat(r.data?.umbral ?? 65)
+        setUmbral(v)
+        setUmbralInput(String(v))
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleGuardarUmbral = async () => {
+    const v = parseFloat(umbralInput)
+    if (isNaN(v) || v < 1 || v > 99) {
+      setUmbralMsg({ tipo: "error", texto: "El umbral debe ser un número entre 1 y 99" })
+      return
+    }
+    setGuardandoUmbral(true)
+    setUmbralMsg(null)
+    try {
+      await axios.put(
+        `${BASE_URL}/api/escalas/umbral`,
+        { umbral: v },
+        { headers: getHeaders() },
+      )
+      setUmbral(v)
+      setUmbralMsg({ tipo: "exito", texto: `Umbral actualizado a ${formatUmbral(v, escala)}` })
+    } catch (e) {
+      setUmbralMsg({ tipo: "error", texto: e.response?.data?.error || e.message })
+    } finally {
+      setGuardandoUmbral(false)
+      setTimeout(() => setUmbralMsg(null), 4000)
+    }
+  }
 
   useEffect(() => {
     setNuevaEscala(escala)
@@ -119,6 +178,89 @@ export default function EscalasPage({ usuario }) {
           </div>
         </div>
       )}
+
+      {/* ── Umbral de Re-evaluación ── */}
+      <div className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl p-8 mb-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 bg-orange-600/20 rounded-lg">
+            <AlertTriangle className="w-5 h-5 text-orange-400" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white">Umbral de Re-evaluación</h2>
+            <p className="text-sm text-neutral-400">
+              Calificación mínima (0-100) por debajo de la cual un estudiante puede acceder a re-evaluación y aparece en alertas de desempeño
+            </p>
+          </div>
+        </div>
+
+        {/* Valor actual en cada escala */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {[["0-100", "Escala 0-100"], ["0-4", "Escala GPA 0-4"], ["A-F", "Escala Letras A-F"]].map(([key, label]) => (
+            <div key={key} className={`rounded-xl p-4 border ${escala === key ? "border-orange-500/50 bg-orange-500/10" : "border-neutral-700/40 bg-neutral-900/40"}`}>
+              <p className="text-xs text-neutral-400 mb-1">{label}</p>
+              <p className={`text-2xl font-black ${escala === key ? "text-orange-400" : "text-neutral-300"}`}>
+                {formatUmbral(umbral, key)}
+              </p>
+              {escala === key && (
+                <span className="text-xs text-orange-400 font-semibold mt-1 block">← Escala actual</span>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {esAdmin ? (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-white mb-2">
+                Nuevo umbral (en escala 0-100)
+              </label>
+              <div className="flex gap-3">
+                <input
+                  type="number"
+                  min="1"
+                  max="99"
+                  step="1"
+                  value={umbralInput}
+                  onChange={e => setUmbralInput(e.target.value)}
+                  className="w-40 bg-neutral-800 border border-neutral-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500 text-lg font-bold"
+                />
+                <button
+                  onClick={handleGuardarUmbral}
+                  disabled={guardandoUmbral || parseFloat(umbralInput) === umbral}
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600 disabled:opacity-50 text-white rounded-lg font-semibold transition"
+                >
+                  <Save className="w-4 h-4" />
+                  {guardandoUmbral ? "Guardando..." : "Guardar"}
+                </button>
+              </div>
+              <p className="text-xs text-neutral-500 mt-2">
+                Equivale a <span className="text-orange-400 font-semibold">{formatUmbral(parseFloat(umbralInput) || umbral, escala)}</span> en la escala actual
+              </p>
+            </div>
+
+            {umbralMsg && (
+              <div className={`p-3 rounded-lg border text-sm font-medium ${
+                umbralMsg.tipo === "exito"
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                  : "bg-red-500/10 border-red-500/30 text-red-400"
+              }`}>
+                {umbralMsg.texto}
+              </div>
+            )}
+
+            <div className="p-4 bg-neutral-900/50 rounded-xl border border-neutral-700/30 text-sm text-neutral-400 space-y-1">
+              <p>• Estudiantes con promedio <strong className="text-red-400">{"< 40"}</strong> → Alerta <strong className="text-red-400">Crítico</strong></p>
+              <p>• Estudiantes con promedio <strong className="text-orange-400">40 – 59</strong> → Alerta <strong className="text-orange-400">Alto</strong></p>
+              <p>• Estudiantes con promedio <strong className="text-yellow-400">60 – {Math.round(umbral) - 1}</strong> → Alerta <strong className="text-yellow-400">Medio</strong> (re-evaluación)</p>
+              <p>• Estudiantes con promedio <strong className="text-emerald-400">≥ {Math.round(umbral)}</strong> → Sin alerta</p>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 bg-neutral-900/50 rounded-xl border border-neutral-700/30 text-sm text-neutral-400">
+            Solo administradores pueden cambiar el umbral de re-evaluación.
+          </div>
+        )}
+      </div>
 
       {/* Ejemplos de Conversión */}
       <div className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl p-8">

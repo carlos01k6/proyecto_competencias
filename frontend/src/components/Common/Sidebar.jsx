@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom"
 import { 
   Home, BookOpen, FileText, BarChart3, Award, CheckSquare, TrendingUp,
   ClipboardList, Settings, Calendar, ChevronDown, Zap, LogOut, Users,
-  GraduationCap, FileCheck, CalendarCheck, Download, Bell, Grid3x3, History
+  GraduationCap, FileCheck, CalendarCheck, Download, Bell, Grid3x3
 } from "lucide-react"
 
 export default function Sidebar({ usuario, onToggleExpand }) {
@@ -73,6 +73,7 @@ export default function Sidebar({ usuario, onToggleExpand }) {
         items: [
           { path: "/reportes-director", label: "Reportes Dirección", icon: BarChart3 },
           { path: "/reportes-competencias", label: "Análisis de Competencias", icon: BookOpen },
+          { path: "/matriz-competencias", label: "Matriz por Grado", icon: Grid3x3 },
           { path: "/exportar", label: "Exportación", icon: Download },
           { path: "/auditoria", label: "Auditoría", icon: FileText }
         ]

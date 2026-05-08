@@ -205,7 +205,7 @@ export default function ReportesCompetenciasPage({ usuario }) {
             <div className="space-y-4">
               <div className="flex items-center gap-4 p-4 bg-neutral-800/30 rounded-xl border border-neutral-700/30">
                 <div>
-                  <p className="text-white font-bold text-lg">{reporteCurso.curso_nombre}</p>
+                  <p className="text-white font-bold text-lg">{reporteCurso.grado_nombre || reporteCurso.curso_nombre}</p>
                   <p className="text-neutral-400 text-sm flex items-center gap-1">
                     <Users className="w-3.5 h-3.5" /> {reporteCurso.total_estudiantes} estudiantes · {reporteCurso.competencias?.length} competencias
                   </p>

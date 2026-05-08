@@ -78,7 +78,7 @@ export default function MatrizCompetenciasPage({ usuario }) {
           <div>
             <h1 className="text-3xl font-bold text-white">Matriz de Competencias</h1>
             <p className="text-neutral-400">
-              {matriz?.curso_nombre || (esAdmin ? 'Selecciona un curso' : 'Todos los estudiantes')}
+              {matriz?.grado_nombre || matriz?.curso_nombre || (esAdmin ? 'Selecciona un grado' : 'Todos los estudiantes')}
             </p>
           </div>
         </div>

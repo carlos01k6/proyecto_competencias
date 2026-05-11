@@ -11,7 +11,8 @@ supabase: Client = get_supabase()
 
 
 def _registrar_auditoria(user_id, action, record_id, student_id, criteria_id,
-                          calificacion_anterior=None, calificacion_nueva=None, observation=None):
+                          calificacion_anterior=None, calificacion_nueva=None,
+                          observation=None, action_date=None):
     try:
         from datetime import datetime
         supabase.table('audits').insert({
@@ -24,7 +25,7 @@ def _registrar_auditoria(user_id, action, record_id, student_id, criteria_id,
             'calificacion_anterior': calificacion_anterior,
             'calificacion_nueva': calificacion_nueva,
             'observation': observation,
-            'action_date': datetime.now().isoformat()
+            'action_date': action_date or datetime.now().isoformat()
         }).execute()
     except Exception as e:
         print(f"AUDITORIA (no crítico): {e}")
@@ -254,7 +255,8 @@ def crear_evaluacion():
             student_id=data.get('student_id'),
             criteria_id=data.get('criteria_id'),
             calificacion_nueva=calificacion,
-            observation=data.get('observation')
+            observation=data.get('observation'),
+            action_date=creada.get('grading_date') or creada.get('created_at')
         )
 
         actualizar_promedio_resultado(data.get('student_id'), data.get('learning_outcome_id'))
@@ -348,7 +350,8 @@ def calificar_actividad():
             criteria_id=criteria_id,
             calificacion_anterior=cal_anterior,
             calificacion_nueva=calificacion,
-            observation=data.get('observation')
+            observation=data.get('observation'),
+            action_date=resultado.get('grading_date') or resultado.get('created_at')
         )
 
         actualizar_promedio_resultado(student_id, learning_outcome_id)
@@ -398,7 +401,8 @@ def actualizar_evaluacion(evaluacion_id):
             criteria_id=evaluacion.get('criteria_id'),
             calificacion_anterior=cal_anterior,
             calificacion_nueva=calificacion,
-            observation=data.get('observation')
+            observation=data.get('observation'),
+            action_date=evaluacion.get('grading_date') or evaluacion.get('created_at')
         )
 
         actualizar_promedio_resultado(evaluacion.get('student_id'), data.get('learning_outcome_id'))

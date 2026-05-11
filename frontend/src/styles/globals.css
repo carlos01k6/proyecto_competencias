@@ -73,3 +73,65 @@ body.theme-light button[class*="bg-emerald"],
 body.theme-light a[class*="from-primary"] {
   color: #ffffff;
 }
+
+@media print {
+  body, html {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  #improvement-plan-printable,
+  #improvement-plan-printable * {
+    visibility: visible !important;
+  }
+
+  #improvement-plan-printable {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 1.5rem !important;
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  #improvement-plan-printable button,
+  #improvement-plan-printable select,
+  #improvement-plan-printable .hover\:text-white,
+  #improvement-plan-printable .hover\:border-neutral-400,
+  #improvement-plan-printable .shadow-lg,
+  #improvement-plan-printable .shadow-primary-brand\/20,
+  #improvement-plan-printable .shadow-primary-brand\/10,
+  #improvement-plan-printable .print-hide-banner {
+    display: none !important;
+    box-shadow: none !important;
+  }
+
+  #improvement-plan-printable .bg-gradient-to-br,
+  #improvement-plan-printable [class*="bg-neutral-900"],
+  #improvement-plan-printable [class*="bg-neutral-800"],
+  #improvement-plan-printable [class*="bg-primary-brand"],
+  #improvement-plan-printable [class*="bg-emerald"],
+  #improvement-plan-printable [class*="bg-red-500"],
+  #improvement-plan-printable [class*="bg-amber-500"] {
+    background: #fff !important;
+  }
+
+  #improvement-plan-printable .text-white,
+  #improvement-plan-printable .text-neutral-300,
+  #improvement-plan-printable .text-neutral-400,
+  #improvement-plan-printable .text-emerald-400,
+  #improvement-plan-printable .text-red-400,
+  #improvement-plan-printable .text-primary-brand,
+  #improvement-plan-printable .text-amber-400 {
+    color: #000 !important;
+  }
+
+  @page {
+    margin: 1cm;
+  }
+}

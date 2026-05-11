@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import * as auditoriaService from '../services/audit'
 
-export function useLogAuditoria(estudiante_id = null) {
+export function useLogAuditoria(estudiante_id = null, fecha_desde = null, fecha_hasta = null) {
   const [log, setLog] = useState([])
   const [cargando, setCargando] = useState(false)
   const [error, setError] = useState(null)
@@ -9,7 +9,7 @@ export function useLogAuditoria(estudiante_id = null) {
   const obtenerLog = async () => {
     setCargando(true)
     try {
-      const data = await auditoriaService.obtenerLogAuditoria(estudiante_id)
+      const data = await auditoriaService.obtenerLogAuditoria(estudiante_id, 100, fecha_desde, fecha_hasta)
       setLog(data)
       setError(null)
     } catch (err) {
@@ -21,7 +21,7 @@ export function useLogAuditoria(estudiante_id = null) {
 
   useEffect(() => {
     obtenerLog()
-  }, [estudiante_id])
+  }, [estudiante_id, fecha_desde, fecha_hasta])
 
   return {
     log,

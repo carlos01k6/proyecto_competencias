@@ -25,10 +25,6 @@ def get_user_role_from_token():
         return None
     try:
         payload = jwt.decode(token, options={"verify_signature": False})
-        role = (payload.get('role') or payload.get('rol') or payload.get('user_role') or '').lower()
-        if role:
-            return role
-
         user_id = payload.get('sub')
         if user_id:
             user_response = supabase.table('users').select('role').eq('id', user_id).limit(1).execute()
@@ -100,13 +96,20 @@ def obtener_log_auditoria():
         # Parámetros opcionales para filtrar
         estudiante_id = request.args.get('student_id')
         limite = request.args.get('limite', default=100, type=int)
-        
+        fecha_desde = request.args.get('fecha_desde')
+        fecha_hasta = request.args.get('fecha_hasta')
+
         try:
             query = supabase.table('audits').select('*').order('action_date', desc=True).limit(limite)
-            
+
             if estudiante_id:
                 query = query.eq('student_id', estudiante_id)
-            
+            if fecha_desde:
+                query = query.gte('action_date', fecha_desde)
+            if fecha_hasta:
+                # Incluir todo el día de la fecha límite
+                query = query.lte('action_date', fecha_hasta + 'T23:59:59')
+
             auditoria_response = query.execute()
             registros = auditoria_response.data
         except:

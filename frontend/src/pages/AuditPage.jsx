@@ -4,16 +4,26 @@ import { obtenerUsuarios } from "../services/users"
 import { ejecutarBackfill } from "../services/audit"
 import { Shield, RefreshCw } from "lucide-react"
 
+function hoy() {
+  return new Date().toISOString().slice(0, 10)
+}
+
 export default function AuditoriaPage({ usuario }) {
   const [tab, setTab] = useState("log")
   const [estudiante_id, setEstudiante_id] = useState("")
   const [docente_id, setDocente_id] = useState("")
+  const [fechaDesde, setFechaDesde] = useState("")
+  const [fechaHasta, setFechaHasta] = useState(hoy())
   const [usuarios, setUsuarios] = useState([])
   const [cargandoUsuarios, setCargandoUsuarios] = useState(false)
   const [errorUsuarios, setErrorUsuarios] = useState(null)
   const [backfillando, setBackfillando] = useState(false)
   const [mensajeBackfill, setMensajeBackfill] = useState(null)
-  const { log, cargando: cargandoLog, obtenerLog: recargarLog } = useLogAuditoria(estudiante_id || null)
+  const { log, cargando: cargandoLog, obtenerLog: recargarLog } = useLogAuditoria(
+    estudiante_id || null,
+    fechaDesde || null,
+    fechaHasta || null
+  )
   const { resumen, cargando: cargandoResumen } = useResumenDocente(docente_id)
 
   const esAdmin = useMemo(() => {
@@ -166,23 +176,46 @@ export default function AuditoriaPage({ usuario }) {
       {tab === "log" && (
         <div className="space-y-6">
           <div className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl p-6">
-            <label className="block text-sm font-semibold text-white mb-3">
-              Filtrar por estudiante (opcional)
-            </label>
-            <select
-              value={estudiante_id}
-              onChange={(e) => setEstudiante_id(e.target.value)}
-              className="w-full bg-neutral-800/50 border border-neutral-700 text-white rounded-lg px-4 py-3 placeholder-neutral-500 focus:outline-none focus:border-primary-brand focus:ring-2 focus:ring-primary-brand/20 transition"
-            >
-              <option value="">
-                {cargandoUsuarios ? "Cargando estudiantes..." : "Todos los estudiantes"}
-              </option>
-              {estudiantes.map((estudiante) => (
-                <option key={estudiante.id} value={estudiante.id}>
-                  {estudiante.nombre || estudiante.name || estudiante.email} - {estudiante.email}
-                </option>
-              ))}
-            </select>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-white mb-2">
+                  Filtrar por estudiante (opcional)
+                </label>
+                <select
+                  value={estudiante_id}
+                  onChange={(e) => setEstudiante_id(e.target.value)}
+                  className="w-full bg-neutral-800/50 border border-neutral-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-primary-brand focus:ring-2 focus:ring-primary-brand/20 transition"
+                >
+                  <option value="">
+                    {cargandoUsuarios ? "Cargando estudiantes..." : "Todos los estudiantes"}
+                  </option>
+                  {estudiantes.map((estudiante) => (
+                    <option key={estudiante.id} value={estudiante.id}>
+                      {estudiante.nombre || estudiante.name || estudiante.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-white mb-2">Desde</label>
+                <input
+                  type="date"
+                  value={fechaDesde}
+                  onChange={(e) => setFechaDesde(e.target.value)}
+                  className="w-full bg-neutral-800/50 border border-neutral-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-primary-brand focus:ring-2 focus:ring-primary-brand/20 transition"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-white mb-2">Hasta</label>
+                <input
+                  type="date"
+                  value={fechaHasta}
+                  max={hoy()}
+                  onChange={(e) => setFechaHasta(e.target.value)}
+                  className="w-full bg-neutral-800/50 border border-neutral-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:border-primary-brand focus:ring-2 focus:ring-primary-brand/20 transition"
+                />
+              </div>
+            </div>
             {errorUsuarios && (
               <p className="text-danger text-sm mt-3">Error cargando usuarios: {errorUsuarios}</p>
             )}

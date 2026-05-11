@@ -30,35 +30,63 @@ def generar_plan_mejora(student_id):
         competencies = competencies_response.data if competencies_response.data else []
 
         weak_competencies = []
-        
+
         for competency in competencies:
-            # Obtener promedio de calificaciones en esta competencia
-            evaluations_response = supabase.table('evaluations').select('grade').eq('student_id', student_id).execute()
-            
+            # Obtener resultados de aprendizaje de esta competencia
+            outcomes_resp = supabase.table('learning_outcomes').select('id').eq('competency_id', competency['id']).execute()
+            outcome_ids = [o['id'] for o in (outcomes_resp.data or [])]
+            if not outcome_ids:
+                continue
+
+            # Obtener criterios de esos resultados
+            criteria_resp = supabase.table('criteria').select('id').in_('learning_outcome_id', outcome_ids).execute()
+            criteria_ids = [c['id'] for c in (criteria_resp.data or [])]
+            if not criteria_ids:
+                continue
+
+            # Obtener evaluaciones del estudiante para esos criterios
+            evaluations_response = (
+                supabase.table('evaluations')
+                .select('grade')
+                .eq('student_id', student_id)
+                .in_('criteria_id', criteria_ids)
+                .execute()
+            )
+
             if evaluations_response.data:
-                grades = [e.get('grade') for e in evaluations_response.data if e.get('grade')]
+                grades = [e.get('grade') for e in evaluations_response.data if e.get('grade') is not None]
                 if grades:
                     average = sum(grades) / len(grades)
-                    
-                    # Si es menor a 40 (Incipiente)
-                    if average < 40:
+                    if average < 70:
                         weak_competencies.append({
                             'competency_id': competency['id'],
                             'competency_name': competency['name'],
+                            'competency_description': competency.get('description', ''),
                             'average_grade': round(average, 2),
-                            'evaluation_count': len(grades)
+                            'evaluation_count': len(grades),
+                            'nivel': 'Incipiente' if average < 40 else 'Básico' if average < 55 else 'En Desarrollo'
                         })
 
-        # Generar plan con actividades remediales
-        improvement_activities = [
-            'Sesión de tutoría individual - Reforzar conceptos básicos',
-            'Ejercicios prácticos adicionales - 5 horas semanales',
-            'Participación en grupo de estudio - 3 horas semanales',
-            'Revisión de material didáctico complementario',
-            'Evaluación formativa cada semana',
-            'Entrevista de seguimiento cada 2 semanas',
-            'Acceso a recursos en línea especializados'
-        ]
+        # Actividades personalizadas por competencia débil
+        actividades_base = {
+            'default': [
+                'Sesión de tutoría individual para reforzar fundamentos',
+                'Ejercicios prácticos adicionales (mínimo 5 horas semanales)',
+                'Participación activa en grupos de estudio (3 horas semanales)',
+                'Revisión de material didáctico complementario provisto por el docente',
+                'Evaluación formativa de seguimiento cada semana',
+                'Entrevista de progreso con el docente cada 2 semanas',
+            ]
+        }
+
+        improvement_activities = []
+        if weak_competencies:
+            for wc in weak_competencies:
+                nombre = wc['competency_name']
+                improvement_activities.append(f"Tutoría enfocada en «{nombre}» — 2 sesiones semanales")
+                improvement_activities.append(f"Práctica guiada de ejercicios de «{nombre}» (4 h/semana)")
+                improvement_activities.append(f"Autoevaluación semanal de avance en «{nombre}»")
+        improvement_activities += actividades_base['default']
 
         start_date = datetime.now()
         plan_data = {

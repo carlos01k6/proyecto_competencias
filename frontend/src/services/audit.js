@@ -16,12 +16,12 @@ export async function registrarAuditoria(datos) {
   return response.data || {}
 }
 
-export async function obtenerLogAuditoria(estudiante_id = null, limite = 100) {
+export async function obtenerLogAuditoria(estudiante_id = null, limite = 100, fecha_desde = null, fecha_hasta = null) {
   let url = `${API_URL}/log?limite=${limite}`
-  if (estudiante_id) {
-    url += `&student_id=${estudiante_id}`
-  }
-  
+  if (estudiante_id) url += `&student_id=${estudiante_id}`
+  if (fecha_desde)   url += `&fecha_desde=${fecha_desde}`
+  if (fecha_hasta)   url += `&fecha_hasta=${fecha_hasta}`
+
   const response = await axios.get(url, {
     headers: getAuthHeader()
   })

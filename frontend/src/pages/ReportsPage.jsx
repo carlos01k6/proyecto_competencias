@@ -110,15 +110,16 @@ export default function ReportesPage({ usuario }) {
       {tab === "competencias" && esAdmin ? (
         <ReportesCompetenciasPage usuario={usuario} />
       ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {stats.map((stat, idx) => (
-          <div key={idx} className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl p-6 hover:border-primary-brand/30 transition">
-            <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${stat.color} mb-3`}></div>
-            <p className="text-neutral-400 text-sm mb-2">{stat.title}</p>
-            <p className="text-3xl font-bold text-white">{stat.value}</p>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {stats.map((stat, idx) => (
+              <div key={idx} className="bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl p-6 hover:border-primary-brand/30 transition">
+                <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${stat.color} mb-3`}></div>
+                <p className="text-neutral-400 text-sm mb-2">{stat.title}</p>
+                <p className="text-3xl font-bold text-white">{stat.value}</p>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
       {/* Filtros */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -205,40 +206,42 @@ export default function ReportesPage({ usuario }) {
       )}
 
       {/* Tabla de datos */}
-      <div className="mt-8 bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl p-6">
-        <h3 className="text-lg font-bold text-white mb-4">Detalles</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-neutral-700/50">
-                <th className="px-4 py-3 text-left font-semibold text-neutral-300">
-                  {esAdmin && "Elemento"}
-                  {esTeacher && "Estudiante"}
-                  {esStudent && "Competencia"}
-                </th>
-                <th className="px-4 py-3 text-left font-semibold text-neutral-300">Evaluaciones</th>
-                <th className="px-4 py-3 text-left font-semibold text-neutral-300">Promedio</th>
-                <th className="px-4 py-3 text-left font-semibold text-neutral-300">Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-neutral-800/50 hover:bg-neutral-900/50 transition">
-                <td className="px-4 py-3 text-white font-semibold">Ejemplo</td>
-                <td className="px-4 py-3 text-neutral-400">15</td>
-                <td className="px-4 py-3 text-white font-semibold">78.5%</td>
-                <td className="px-4 py-3">
-                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-success/20 text-success">
-                    Satisfactorio
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <p className="text-xs text-neutral-500 mt-4">
-          Los datos se mostrarán cuando haya evaluaciones registradas en el sistema
-        </p>
-      </div>
+          <div className="mt-8 bg-gradient-to-br from-neutral-800/50 to-neutral-900/50 border border-neutral-700/50 rounded-2xl p-6">
+            <h3 className="text-lg font-bold text-white mb-4">Detalles</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-neutral-700/50">
+                    <th className="px-4 py-3 text-left font-semibold text-neutral-300">
+                      {esAdmin && "Elemento"}
+                      {esTeacher && "Estudiante"}
+                      {esStudent && "Competencia"}
+                    </th>
+                    <th className="px-4 py-3 text-left font-semibold text-neutral-300">Evaluaciones</th>
+                    <th className="px-4 py-3 text-left font-semibold text-neutral-300">Promedio</th>
+                    <th className="px-4 py-3 text-left font-semibold text-neutral-300">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-neutral-800/50 hover:bg-neutral-900/50 transition">
+                    <td className="px-4 py-3 text-white font-semibold">Ejemplo</td>
+                    <td className="px-4 py-3 text-neutral-400">15</td>
+                    <td className="px-4 py-3 text-white font-semibold">78.5%</td>
+                    <td className="px-4 py-3">
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-success/20 text-success">
+                        Satisfactorio
+                      </span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-neutral-500 mt-4">
+              Los datos se mostrarán cuando haya evaluaciones registradas en el sistema
+            </p>
+          </div>
+        </>
+      )}
     </div>
   )
 }

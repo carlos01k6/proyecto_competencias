@@ -16,6 +16,40 @@ def get_user_id_from_token():
     except:
         return None
 
+
+def normalizar_evidencia(evidencia):
+    archivo = (
+        evidencia.get('nombre_archivo')
+        or evidencia.get('file_name')
+        or evidencia.get('file_url')
+        or evidencia.get('nombre')
+        or 'Evidencia'
+    )
+    ruta = (
+        evidencia.get('ruta_archivo')
+        or evidencia.get('file_url')
+        or evidencia.get('url')
+        or ''
+    )
+    fecha = (
+        evidencia.get('fecha_subida')
+        or evidencia.get('delivery_date')
+        or evidencia.get('send_date')
+        or evidencia.get('created_at')
+    )
+
+    return {
+        'id': evidencia.get('id'),
+        'nombre_archivo': archivo,
+        'ruta_archivo': ruta,
+        'file_url': evidencia.get('file_url') or ruta,
+        'delivery_date': fecha,
+        'fecha_subida': fecha,
+        'estado': evidencia.get('estado') or evidencia.get('status') or 'pendiente',
+        'student_id': evidencia.get('student_id'),
+        'description': evidencia.get('description') or evidencia.get('descripcion') or ''
+    }
+
 # OBTENER EVIDENCIAS AGRUPADAS POR ACTIVIDAD
 @evidencias_proyecto_bp.route('/por-actividad/<actividad_id>', methods=['GET'])
 def obtener_evidencias_por_actividad(actividad_id):
@@ -44,19 +78,24 @@ def obtener_evidencias_por_actividad(actividad_id):
                     'student_id': estudiante_id,
                     'evidence': []
                 }
-            estudiantes_dict[estudiante_id]['evidence'].append({
-                'id': evidencia['id'],
-                'nombre_archivo': evidencia['nombre_archivo'],
-                'ruta_archivo': evidencia['ruta_archivo'],
-                'delivery_date': evidencia['delivery_date'],
-                'estado': evidencia.get('estado', 'pendiente')
-            })
+            estudiantes_dict[estudiante_id]['evidence'].append(normalizar_evidencia(evidencia))
+
+        for estudiante in estudiantes_dict.values():
+            estudiante['estudiante_id'] = estudiante['student_id']
+            estudiante['evidencias'] = estudiante['evidence']
+
+        fecha_limite = (
+            actividad.get('fecha_limite')
+            or actividad.get('close_date')
+            or actividad.get('fecha_cierre')
+            or actividad.get('due_date')
+        )
 
         resultado = {
             'activity_id': actividad['id'],
-            'actividad_nombre': actividad['nombre'],
-            'actividad_descripcion': actividad.get('descripcion', ''),
-            'fecha_limite': actividad.get('fecha_limite'),
+            'actividad_nombre': actividad.get('nombre') or actividad.get('title') or actividad.get('name'),
+            'actividad_descripcion': actividad.get('descripcion') or actividad.get('description') or '',
+            'fecha_limite': fecha_limite,
             'estudiantes': list(estudiantes_dict.values()),
             'total_estudiantes': len(estudiantes_dict),
             'total_evidencias': len(evidencias)
@@ -76,9 +115,20 @@ def obtener_actividades_resumen():
         if not usuario_id:
             return jsonify({'error': 'No autorizado'}), 401
 
-        # Obtener todas las actividades
-        actividades_response = supabase.table('activities').select('*').order('fecha_limite').execute()
-        actividades = actividades_response.data
+        # Obtener todas las actividades. La tabla actual usa close_date; versiones
+        # anteriores del modulo esperaban fecha_limite.
+        actividades_response = supabase.table('activities').select('*').execute()
+        actividades = actividades_response.data or []
+
+        actividades.sort(
+            key=lambda actividad: (
+                actividad.get('fecha_limite')
+                or actividad.get('close_date')
+                or actividad.get('fecha_cierre')
+                or actividad.get('due_date')
+                or ''
+            )
+        )
 
         resultado = []
         for actividad in actividades:
@@ -90,11 +140,18 @@ def obtener_actividades_resumen():
             estudiantes_response = supabase.table('evidence').select('student_id').eq('activity_id', actividad['id']).execute()
             estudiantes_unicos = len(set(e['student_id'] for e in estudiantes_response.data))
 
+            fecha_limite = (
+                actividad.get('fecha_limite')
+                or actividad.get('close_date')
+                or actividad.get('fecha_cierre')
+                or actividad.get('due_date')
+            )
+
             resultado.append({
                 'id': actividad['id'],
-                'nombre': actividad['nombre'],
-                'descripcion': actividad.get('descripcion', ''),
-                'fecha_limite': actividad.get('fecha_limite'),
+                'nombre': actividad.get('nombre') or actividad.get('title') or actividad.get('name'),
+                'descripcion': actividad.get('descripcion') or actividad.get('description') or '',
+                'fecha_limite': fecha_limite,
                 'total_evidencias': total_evidencias,
                 'total_estudiantes': estudiantes_unicos
             })

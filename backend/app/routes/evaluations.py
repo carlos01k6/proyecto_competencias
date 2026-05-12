@@ -267,6 +267,7 @@ def crear_evaluacion():
             activity_id,
             calificacion,
             data.get('observation'),
+            teacher_id=data.get('teacher_id') or get_user_id_from_token(),
         )
 
         # Crear snapshot de progreso
@@ -369,6 +370,7 @@ def calificar_actividad():
             activity_id,
             calificacion,
             data.get('observation'),
+            teacher_id=teacher_id,
         )
 
         return jsonify(resultado), 200
@@ -428,6 +430,7 @@ def actualizar_evaluacion(evaluacion_id):
             evaluacion.get('activity_id'),
             calificacion,
             data.get('observation'),
+            teacher_id=get_user_id_from_token(),
         )
 
         return jsonify({'success': True, **evaluacion}), 200

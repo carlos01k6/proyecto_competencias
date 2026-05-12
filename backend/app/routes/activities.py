@@ -136,6 +136,25 @@ def crear_actividad():
 
         if estudiantes:
             try:
+                # Obtener nombre del docente
+                docente_nombre = "El docente"
+                docente_id = nueva_actividad.get('docente_id')
+                if docente_id:
+                    docente_resp = supabase.table('users').select('name').eq('id', docente_id).limit(1).execute()
+                    if docente_resp.data:
+                        docente_nombre = docente_resp.data[0].get('name') or "El docente"
+
+                titulo_act = actividad_creada.get('title') or 'Nueva actividad'
+                descripcion = actividad_creada.get('description') or 'Sin descripcion.'
+                fecha_inicio = actividad_creada.get('start_date') or 'Disponible ahora'
+                fecha_cierre = actividad_creada.get('close_date') or 'Sin fecha limite'
+                puntaje = actividad_creada.get('max_score') or 100
+                tipo_map = {
+                    'tarea': 'Tarea', 'evaluacion': 'Evaluacion', 'quiz': 'Quiz',
+                    'proyecto': 'Proyecto', 'presentacion': 'Presentacion',
+                }
+                tipo_display = tipo_map.get(actividad_creada.get('type') or '', 'Tarea')
+
                 usuarios_resp = supabase.table('users').select('id, email, name').in_('id', estudiantes).execute()
                 for usuario in usuarios_resp.data or []:
                     email = usuario.get('email')
@@ -143,18 +162,34 @@ def crear_actividad():
                         print(f"OMITIENDO EMAIL INVALIDO: {email}")
                         continue
                     try:
-                        nombre = usuario.get('name') or 'estudiante'
+                        nombre_est = usuario.get('name') or 'Estudiante'
                         cuerpo = (
-                            f"Hola {nombre},\n\n"
-                            f"Se ha publicado una nueva actividad: {actividad_creada.get('title')}.\n\n"
-                            f"Descripción:\n{actividad_creada.get('description') or 'No hay descripción.'}\n\n"
-                            "Revisa tu curso para más detalles.\n\n"
-                            "Sistema de Evaluacion por Competencias"
+                            f"{'='*50}\n"
+                            f"  NUEVA ACTIVIDAD PUBLICADA\n"
+                            f"{'='*50}\n\n"
+                            f"Hola {nombre_est},\n\n"
+                            f"{docente_nombre} acaba de publicar una nueva actividad en tu curso.\n\n"
+                            f"  {titulo_act.upper()}\n"
+                            f"{'-'*50}\n"
+                            f"{descripcion}\n"
+                            f"{'-'*50}\n\n"
+                            f"DETALLES:\n"
+                            f"  Tipo             : {tipo_display}\n"
+                            f"  Publicacion      : {fecha_inicio}\n"
+                            f"  Fecha de entrega : {fecha_cierre}\n"
+                            f"  Puntaje maximo   : {puntaje} pts\n\n"
+                            f"Ingresa a la plataforma y revisa tu panel para\n"
+                            f"ver los detalles completos y entregar a tiempo.\n\n"
+                            f"Saludos,\n"
+                            f"{docente_nombre}\n"
+                            f"Sistema de Evaluacion por Competencias\n"
+                            f"{'='*50}"
                         )
                         enviar_mensaje(
                             email,
-                            f"Nueva actividad: {actividad_creada.get('title')}",
+                            f"[Nueva Actividad] {titulo_act} — {docente_nombre}",
                             cuerpo,
+                            remitente_nombre=docente_nombre,
                         )
                     except Exception as e:
                         print(f"ERROR ENVIAR EMAIL ACTIVIDAD A {email}: {str(e)}")

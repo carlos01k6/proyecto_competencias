@@ -43,10 +43,13 @@ def obtener_nombre_actividad(actividad_id):
     return "Actividad"
 
 
-def enviar_mensaje(destinatario, asunto, cuerpo, adjuntos=None):
+def enviar_mensaje(destinatario, asunto, cuerpo, adjuntos=None, remitente_nombre=None):
     if not is_valid_email(destinatario):
         raise ValueError(f"Email inválido: {destinatario}")
-    msg = Message(subject=asunto, recipients=[destinatario], body=cuerpo)
+    from flask import current_app
+    email_cuenta = current_app.config.get("MAIL_DEFAULT_SENDER") or current_app.config.get("MAIL_USERNAME")
+    sender = (remitente_nombre, email_cuenta) if remitente_nombre else email_cuenta
+    msg = Message(subject=asunto, recipients=[destinatario], body=cuerpo, sender=sender)
     for adjunto in adjuntos or []:
         msg.attach(
             adjunto["filename"],
@@ -56,7 +59,7 @@ def enviar_mensaje(destinatario, asunto, cuerpo, adjuntos=None):
     mail.send(msg)
 
 
-def enviar_notificacion_calificacion(student_id: str, activity_id: str, grade: float, observation: str = None):
+def enviar_notificacion_calificacion(student_id: str, activity_id: str, grade: float, observation: str = None, teacher_id: str = None):
     """Notifica al estudiante que se registró o actualizó su calificación. No lanza excepciones."""
     try:
         estudiante = obtener_estudiante(student_id)
@@ -66,19 +69,50 @@ def enviar_notificacion_calificacion(student_id: str, activity_id: str, grade: f
         if not is_valid_email(email):
             print(f"OMITIENDO EMAIL INVALIDO AL NOTIFICAR CALIFICACION: {email}")
             return
-        nombre = estudiante.get("name") or "estudiante"
+        nombre_est = estudiante.get("name") or "Estudiante"
         titulo_actividad = obtener_nombre_actividad(activity_id)
-        lineas = [
-            f"Hola {nombre},",
-            "",
-            f"Se ha registrado una calificacion en la actividad: {titulo_actividad}.",
-            "",
-            f"Nota obtenida: {grade}/100",
-        ]
+
+        docente_nombre = "Tu docente"
+        if teacher_id:
+            docente_resp = supabase.table("users").select("name").eq("id", teacher_id).limit(1).execute()
+            if docente_resp.data:
+                docente_nombre = docente_resp.data[0].get("name") or "Tu docente"
+
+        nota_str = f"{grade:.1f}" if grade != int(grade) else str(int(grade))
+        estado = "Aprobado" if grade >= 60 else "No aprobado"
+
+        cuerpo = (
+            f"{'='*50}\n"
+            f"  CALIFICACION REGISTRADA\n"
+            f"{'='*50}\n\n"
+            f"Hola {nombre_est},\n\n"
+            f"{docente_nombre} ha registrado tu calificacion.\n\n"
+            f"  {titulo_actividad.upper()}\n"
+            f"{'-'*50}\n"
+            f"  Nota obtenida : {nota_str} / 100\n"
+            f"  Estado        : {estado}\n"
+        )
         if observation:
-            lineas += ["", f"Comentario del docente:\n{observation}"]
-        lineas += ["", "Sistema de Evaluacion por Competencias"]
-        enviar_mensaje(email, f"Calificacion registrada - {titulo_actividad}", "\n".join(lineas))
+            cuerpo += (
+                f"\nCOMENTARIO DEL DOCENTE:\n"
+                f"{'-'*50}\n"
+                f"{observation}\n"
+            )
+        cuerpo += (
+            f"{'-'*50}\n\n"
+            f"Ingresa a la plataforma para ver el detalle\n"
+            f"completo de tu evaluacion.\n\n"
+            f"Saludos,\n"
+            f"{docente_nombre}\n"
+            f"Sistema de Evaluacion por Competencias\n"
+            f"{'='*50}"
+        )
+        enviar_mensaje(
+            email,
+            f"[Calificacion] {titulo_actividad} — {nota_str}/100",
+            cuerpo,
+            remitente_nombre=docente_nombre,
+        )
     except Exception as e:
         print(f"ERROR ENVIAR NOTIFICACION CALIFICACION: {str(e)}")
 

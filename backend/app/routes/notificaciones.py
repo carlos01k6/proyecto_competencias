@@ -26,7 +26,7 @@ def obtener_notificaciones(student_id):
     try:
         response = (
             supabase.table("notificaciones")
-            .select("id, titulo, mensaje, tipo, created_at")
+            .select("id, titulo, mensaje, tipo, leida, created_at")
             .eq("estudiante_id", student_id)
             .eq("leida", False)
             .order("created_at", desc=True)

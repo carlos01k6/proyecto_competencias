@@ -31,6 +31,7 @@ from .routes.templates import plantillas_bp
 from .routes.rubrics import rubricas_bp
 from .routes.tracking import seguimiento_bp
 from .routes.courses import cursos_bp
+from .routes.docentes import docentes_bp
 from .routes.students import estudiantes_bp
 from .routes.course_students import estudiantes_curso_bp
 from .routes.batch_registration import registro_batch_bp
@@ -119,6 +120,7 @@ def create_app():
     app.register_blueprint(rubricas_bp)
     app.register_blueprint(seguimiento_bp)
     app.register_blueprint(cursos_bp)
+    app.register_blueprint(docentes_bp)
     app.register_blueprint(estudiantes_bp)
     app.register_blueprint(estudiantes_curso_bp)
     app.register_blueprint(registro_batch_bp)

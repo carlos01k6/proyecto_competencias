@@ -1,3 +1,4 @@
+import re
 from flask import Blueprint, jsonify, request
 from flask_mail import Mail, Message
 from supabase import Client
@@ -8,6 +9,14 @@ from .export import crear_pdf_boletin, obtener_boletin_estudiante
 correos_bp = Blueprint("correos", __name__, url_prefix="/api/correos")
 supabase: Client = get_supabase()
 mail = Mail()
+
+EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def is_valid_email(email):
+    if not email or not isinstance(email, str):
+        return False
+    return bool(EMAIL_REGEX.match(email.strip()))
 
 
 def obtener_estudiante(student_id):
@@ -35,6 +44,8 @@ def obtener_nombre_actividad(actividad_id):
 
 
 def enviar_mensaje(destinatario, asunto, cuerpo, adjuntos=None):
+    if not is_valid_email(destinatario):
+        raise ValueError(f"Email inválido: {destinatario}")
     msg = Message(subject=asunto, recipients=[destinatario], body=cuerpo)
     for adjunto in adjuntos or []:
         msg.attach(
@@ -43,6 +54,33 @@ def enviar_mensaje(destinatario, asunto, cuerpo, adjuntos=None):
             adjunto["data"],
         )
     mail.send(msg)
+
+
+def enviar_notificacion_calificacion(student_id: str, activity_id: str, grade: float, observation: str = None):
+    """Notifica al estudiante que se registró o actualizó su calificación. No lanza excepciones."""
+    try:
+        estudiante = obtener_estudiante(student_id)
+        if not estudiante:
+            return
+        email = estudiante.get("email")
+        if not is_valid_email(email):
+            print(f"OMITIENDO EMAIL INVALIDO AL NOTIFICAR CALIFICACION: {email}")
+            return
+        nombre = estudiante.get("name") or "estudiante"
+        titulo_actividad = obtener_nombre_actividad(activity_id)
+        lineas = [
+            f"Hola {nombre},",
+            "",
+            f"Se ha registrado una calificacion en la actividad: {titulo_actividad}.",
+            "",
+            f"Nota obtenida: {grade}/100",
+        ]
+        if observation:
+            lineas += ["", f"Comentario del docente:\n{observation}"]
+        lineas += ["", "Sistema de Evaluacion por Competencias"]
+        enviar_mensaje(email, f"Calificacion registrada - {titulo_actividad}", "\n".join(lineas))
+    except Exception as e:
+        print(f"ERROR ENVIAR NOTIFICACION CALIFICACION: {str(e)}")
 
 
 @correos_bp.route("/retroalimentacion", methods=["POST"])

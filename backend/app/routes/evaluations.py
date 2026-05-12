@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from supabase import Client
 from ..supabase_client import get_supabase
+from .emails import enviar_notificacion_calificacion
 import uuid
 import math
 import jwt
@@ -261,6 +262,13 @@ def crear_evaluacion():
 
         actualizar_promedio_resultado(data.get('student_id'), data.get('learning_outcome_id'))
 
+        enviar_notificacion_calificacion(
+            data.get('student_id'),
+            activity_id,
+            calificacion,
+            data.get('observation'),
+        )
+
         # Crear snapshot de progreso
         try:
             crit_res = supabase.table('criteria').select('learning_outcome_id').eq('id', data.get('criteria_id')).execute()
@@ -355,6 +363,14 @@ def calificar_actividad():
         )
 
         actualizar_promedio_resultado(student_id, learning_outcome_id)
+
+        enviar_notificacion_calificacion(
+            student_id,
+            activity_id,
+            calificacion,
+            data.get('observation'),
+        )
+
         return jsonify(resultado), 200
     except Exception as e:
         print(f"ERROR CALIFICAR ACTIVIDAD: {str(e)}")
@@ -406,6 +422,13 @@ def actualizar_evaluacion(evaluacion_id):
         )
 
         actualizar_promedio_resultado(evaluacion.get('student_id'), data.get('learning_outcome_id'))
+
+        enviar_notificacion_calificacion(
+            evaluacion.get('student_id'),
+            evaluacion.get('activity_id'),
+            calificacion,
+            data.get('observation'),
+        )
 
         return jsonify({'success': True, **evaluacion}), 200
     except Exception as e:

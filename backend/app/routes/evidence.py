@@ -1,6 +1,7 @@
 ﻿from flask import Blueprint, request, jsonify
 from supabase import Client
 from ..supabase_client import get_supabase
+from datetime import datetime, timezone
 import uuid
 import jwt
 
@@ -95,6 +96,25 @@ def activity_exists(activity_id):
         return False
     response = supabase.table('activities').select('id').eq('id', activity_id).limit(1).execute()
     return bool(response.data)
+
+
+def _get_activity_close_date(activity_id) -> str | None:
+    response = supabase.table('activities').select('close_date').eq('id', activity_id).limit(1).execute()
+    if not response.data:
+        return None
+    return response.data[0].get('close_date')
+
+
+def _parse_close_date(value: str) -> datetime:
+    """Parse an ISO date or datetime string into a timezone-aware datetime."""
+    normalized = value.strip().replace('Z', '+00:00')
+    try:
+        dt = datetime.fromisoformat(normalized)
+    except ValueError:
+        dt = datetime.fromisoformat(normalized[:10])
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 def anexar_calificaciones(evidencias):
@@ -204,6 +224,17 @@ def crear_evidencia():
 
         if not activity_exists(activity_id):
             return jsonify({'mensaje': 'Selecciona una actividad valida'}), 400
+
+        close_date_raw = _get_activity_close_date(activity_id)
+        if close_date_raw:
+            try:
+                close_dt = _parse_close_date(close_date_raw)
+                if datetime.now(timezone.utc) > close_dt:
+                    return jsonify({
+                        'error': 'La fecha de entrega de esta actividad ya ha cerrado. No se pueden subir nuevas evidencias.'
+                    }), 400
+            except Exception as parse_err:
+                print(f"WARN close_date parse error for activity {activity_id}: {parse_err}")
 
         student_id = resolve_user_id(data.get('student_id'))
         if not student_id:

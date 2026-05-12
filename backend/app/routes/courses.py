@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_cors import cross_origin
 from ..supabase_client import get_supabase
+from .docentes import crear_docente_en_sistema
 import jwt
 
 cursos_bp = Blueprint("cursos", __name__, url_prefix="/api/cursos")
@@ -144,17 +145,35 @@ def crear_curso():
         if not nombre:
             return jsonify({"error": "El nombre es requerido"}), 400
 
+        docente_id = data.get("docente_id") or None
+        docente_creado = None
+
+        if data.get("crear_docente"):
+            docente_data = data.get("docente") or {}
+            email = (docente_data.get("email") or "").strip()
+            password = (docente_data.get("password") or "").strip()
+            name = (docente_data.get("name") or "").strip()
+            if not email or not password or not name:
+                return jsonify({
+                    "error": "docente.email, docente.password y docente.name son requeridos cuando crear_docente es true"
+                }), 400
+            docente_creado = crear_docente_en_sistema(email, password, name)
+            docente_id = docente_creado["id"]
+
         import uuid as _uuid
         nuevo = {
             "id": str(_uuid.uuid4()),
             "nombre": nombre,
             "codigo": (data.get("codigo") or "").strip() or None,
             "descripcion": (data.get("descripcion") or "").strip() or None,
-            "docente_id": data.get("docente_id") or None,
+            "docente_id": docente_id,
             "estado": "activo",
         }
         res = supabase.table("cursos").insert(nuevo).execute()
-        return jsonify(res.data[0] if res.data else nuevo), 201
+        respuesta = res.data[0] if res.data else nuevo
+        if docente_creado:
+            respuesta["docente_creado"] = docente_creado
+        return jsonify(respuesta), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

@@ -2,6 +2,7 @@
 from supabase import Client
 from ..supabase_client import get_supabase
 from .notificaciones import crear_notificacion_estudiante
+from .emails import enviar_mensaje, is_valid_email
 import uuid
 
 actividades_bp = Blueprint('activities', __name__, url_prefix='/api/actividades')
@@ -18,6 +19,16 @@ def get_user_id_from_token():
         print(f"DEBUG: Error al validar token: {str(e)}")
         return None
 
+def obtener_todos_estudiantes():
+    """Devuelve los IDs de todos los usuarios con rol estudiante registrados en el sistema."""
+    try:
+        resp = supabase.table('users').select('id').eq('role', 'student').execute()
+        return [u['id'] for u in (resp.data or []) if u.get('id')]
+    except Exception as e:
+        print(f"ERROR OBTENER TODOS ESTUDIANTES: {str(e)}")
+        return []
+
+
 def obtener_estudiantes_para_notificar(curso_id, docente_id):
     try:
         curso_ids = []
@@ -27,20 +38,23 @@ def obtener_estudiantes_para_notificar(curso_id, docente_id):
             cursos_response = supabase.table('cursos').select('id').eq('docente_id', docente_id).execute()
             curso_ids = [curso['id'] for curso in (cursos_response.data or []) if curso.get('id')]
 
-        if not curso_ids:
-            return []
+        inscritos = set()
+        if curso_ids:
+            query = supabase.table('estudiante_curso').select('estudiante_id')
+            if len(curso_ids) == 1:
+                estudiantes_response = query.eq('curso_id', curso_ids[0]).execute()
+            else:
+                estudiantes_response = query.in_('curso_id', curso_ids).execute()
+            inscritos = {
+                item['estudiante_id']
+                for item in (estudiantes_response.data or [])
+                if item.get('estudiante_id')
+            }
 
-        query = supabase.table('estudiante_curso').select('estudiante_id')
-        if len(curso_ids) == 1:
-            estudiantes_response = query.eq('curso_id', curso_ids[0]).execute()
-        else:
-            estudiantes_response = query.in_('curso_id', curso_ids).execute()
-
-        return list({
-            item['estudiante_id']
-            for item in (estudiantes_response.data or [])
-            if item.get('estudiante_id')
-        })
+        # Si hay inscritos en el curso úsalos; de lo contrario notifica a todos los estudiantes
+        if inscritos:
+            return list(inscritos)
+        return obtener_todos_estudiantes()
     except Exception as e:
         print(f"ERROR OBTENER ESTUDIANTES PARA NOTIFICAR: {str(e)}")
         return []
@@ -119,6 +133,33 @@ def crear_actividad():
                 )
             except Exception as e:
                 print(f"ERROR CREAR NOTIFICACION DE ACTIVIDAD: {str(e)}")
+
+        if estudiantes:
+            try:
+                usuarios_resp = supabase.table('users').select('id, email, name').in_('id', estudiantes).execute()
+                for usuario in usuarios_resp.data or []:
+                    email = usuario.get('email')
+                    if not is_valid_email(email):
+                        print(f"OMITIENDO EMAIL INVALIDO: {email}")
+                        continue
+                    try:
+                        nombre = usuario.get('name') or 'estudiante'
+                        cuerpo = (
+                            f"Hola {nombre},\n\n"
+                            f"Se ha publicado una nueva actividad: {actividad_creada.get('title')}.\n\n"
+                            f"Descripción:\n{actividad_creada.get('description') or 'No hay descripción.'}\n\n"
+                            "Revisa tu curso para más detalles.\n\n"
+                            "Sistema de Evaluacion por Competencias"
+                        )
+                        enviar_mensaje(
+                            email,
+                            f"Nueva actividad: {actividad_creada.get('title')}",
+                            cuerpo,
+                        )
+                    except Exception as e:
+                        print(f"ERROR ENVIAR EMAIL ACTIVIDAD A {email}: {str(e)}")
+            except Exception as e:
+                print(f"ERROR OBTENER EMAILS ESTUDIANTES: {str(e)}")
 
         return jsonify(response.data[0]), 201
     except Exception as e:

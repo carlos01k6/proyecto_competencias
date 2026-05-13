@@ -38,9 +38,12 @@ def obtener_configuraciones():
         configuraciones = [
             {
                 'key': item.get('key'),
-                'value': item.get('value')
+                'value': item.get('value'),
+                'description': item.get('description') or item.get('key'),
+                'type': item.get('type') or 'text',
             }
             for item in (response.data or [])
+            if not (item.get('key') or '').startswith('period_')
         ]
 
         return jsonify(configuraciones), 200

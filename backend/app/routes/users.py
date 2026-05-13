@@ -43,14 +43,37 @@ def crear_usuario():
         if role not in ('student', 'teacher', 'admin'):
             return jsonify({'error': 'Rol inválido'}), 400
 
-        # Crear en Supabase Auth
-        auth_response = supabase.auth.sign_up({
-            'email': email,
-            'password': password,
-            'options': {'data': {'name': name}}
-        })
+        # Verificar si el email ya existe en public.users
+        email_check = supabase.table('users').select('id').eq('email', email).limit(1).execute()
+        if email_check.data:
+            return jsonify({'error': 'Ya existe un usuario con ese email'}), 400
+
+        # Crear en Supabase Auth usando admin (auto-confirma email, más robusto)
+        try:
+            auth_response = supabase.auth.admin.create_user({
+                'email': email,
+                'password': password,
+                'email_confirm': True,
+                'user_metadata': {'name': name}
+            })
+        except Exception as auth_err:
+            msg = str(auth_err).lower()
+            if 'already' in msg or 'exists' in msg:
+                return jsonify({'error': 'El email ya está registrado en el sistema de autenticación. Elimínalo desde el panel de Supabase y vuelve a intentarlo.'}), 400
+            raise
+
+        if not auth_response.user:
+            return jsonify({'error': 'No se pudo crear el usuario en Supabase Auth'}), 400
 
         usuario_id = auth_response.user.id
+
+        # Insertar en public.users
+        supabase.table('users').insert({
+            'id': usuario_id,
+            'email': email,
+            'name': name,
+            'role': role,
+        }).execute()
 
         # Asignar rol en user_roles
         rol_response = supabase.table('roles').select('id').eq('name', role).execute()

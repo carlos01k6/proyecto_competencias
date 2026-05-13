@@ -24,6 +24,12 @@ def parse_period_value(value):
     try:
         return json.loads(value)
     except Exception:
+        pass
+    # Manejar strings con formato Python (True/False/None y comillas simples)
+    try:
+        fixed = value.replace("'", '"').replace('True', 'true').replace('False', 'false').replace('None', 'null')
+        return json.loads(fixed)
+    except Exception:
         return {'description': value}
 
 def build_period_response(config):

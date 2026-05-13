@@ -169,8 +169,12 @@ export default function AcademicPeriodsPage({ usuario }) {
                       {periodos.map((periodo, idx) => (
                         <div key={idx} className="border border-neutral-700/50 rounded-lg p-4 flex justify-between items-center bg-neutral-900/50 hover:border-primary-brand/30 transition">
                           <div>
-                            <p className="font-semibold text-white">{periodo.description}</p>
-                            <p className="text-sm text-neutral-400 mt-1">{periodo.value}</p>
+                            <p className="font-semibold text-white">{periodo.description || periodo.nombre || periodo.key}</p>
+                            {(periodo.fecha_inicio || periodo.fecha_fin) && (
+                              <p className="text-sm text-neutral-400 mt-1">
+                                {periodo.fecha_inicio ? formatearFecha(periodo.fecha_inicio) : '?'} → {periodo.fecha_fin ? formatearFecha(periodo.fecha_fin) : '?'}
+                              </p>
+                            )}
                           </div>
                           <span className="bg-success/20 text-success px-3 py-1 rounded-full text-sm font-semibold border border-success/30">
                             Activo

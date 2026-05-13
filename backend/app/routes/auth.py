@@ -29,16 +29,29 @@ def signup():
             }
         })
         
+        if not response.user:
+            return jsonify({'mensaje': 'No se pudo crear el usuario. El email ya puede estar registrado.'}), 400
+
         usuario_id = response.user.id
-        
+
+        # Insertar en public.users si aún no existe (requerido por FK de user_roles)
+        user_check = supabase.table('users').select('id').eq('id', usuario_id).limit(1).execute()
+        if not user_check.data:
+            supabase.table('users').insert({
+                'id': usuario_id,
+                'email': email,
+                'name': name,
+                'role': 'student',
+            }).execute()
+
         # Obtener rol "student" de la BD
         rol_response = supabase.table('roles').select('id').eq('name', 'student').execute()
-        
+
         if not rol_response.data:
             return jsonify({'mensaje': 'Rol student no encontrado en BD'}), 400
-        
+
         rol_id = rol_response.data[0]['id']
-        
+
         # Asignar rol en tabla user_roles
         supabase.table('user_roles').insert({
             'user_id': usuario_id,

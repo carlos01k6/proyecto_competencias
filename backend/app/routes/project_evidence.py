@@ -67,7 +67,7 @@ def obtener_evidencias_por_actividad(actividad_id):
 
         # Obtener todas las evidencias de esta actividad agrupadas por estudiante
         evidencias_response = supabase.table('evidence').select('*').eq('activity_id', actividad_id).order('delivery_date', desc=True).execute()
-        evidencias = evidencias_response.data
+        evidencias = evidencias_response.data or []
 
         # Agrupar por estudiante
         estudiantes_dict = {}
@@ -134,11 +134,11 @@ def obtener_actividades_resumen():
         for actividad in actividades:
             # Contar evidencias por actividad
             evidencias_response = supabase.table('evidence').select('id', count='exact').eq('activity_id', actividad['id']).execute()
-            total_evidencias = len(evidencias_response.data)
+            total_evidencias = len(evidencias_response.data or [])
 
             # Contar estudiantes únicos
             estudiantes_response = supabase.table('evidence').select('student_id').eq('activity_id', actividad['id']).execute()
-            estudiantes_unicos = len(set(e['student_id'] for e in estudiantes_response.data))
+            estudiantes_unicos = len(set(e['student_id'] for e in (estudiantes_response.data or []) if e.get('student_id')))
 
             fecha_limite = (
                 actividad.get('fecha_limite')

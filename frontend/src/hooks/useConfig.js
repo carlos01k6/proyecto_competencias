@@ -17,8 +17,8 @@ export function useConfig() {
               key: item.key,
               value: item.value,
               valor: item.value,
-              tipo: typeof item.value === 'number' ? 'number' : item.value === 'true' || item.value === 'false' ? 'boolean' : 'text',
-              descripcion: item.key
+              tipo: item.type || (item.value === 'true' || item.value === 'false' ? 'boolean' : isNaN(Number(item.value)) ? 'text' : 'number'),
+              descripcion: item.description || item.key
             }
             return acc
           }, {})

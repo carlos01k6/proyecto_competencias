@@ -84,14 +84,13 @@ export default function Layout({ children, usuario }) {
   const [busqueda, setBusqueda] = useState('')
   const [indiceSel, setIndiceSel] = useState(0)
   const refBusqueda = useRef(null)
+  const rol = usuario?.rol?.toLowerCase()
   const {
     notificaciones,
     mostrarModal,
     setMostrarModal,
     marcarLeida,
-  } = useNotificaciones(usuario?.id)
-
-  const rol = usuario?.rol?.toLowerCase()
+  } = useNotificaciones(rol === 'student' ? usuario?.id : null)
   const resultados = busqueda.trim().length > 0
     ? SECCIONES.filter(s =>
         s.roles.includes(rol) &&

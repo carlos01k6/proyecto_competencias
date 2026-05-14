@@ -35,7 +35,7 @@ def obtener_notificaciones(student_id):
         return jsonify(response.data or []), 200
     except Exception as e:
         print(f"ERROR OBTENER NOTIFICACIONES: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify([]), 200
 
 
 @notificaciones_bp.route("/<notificacion_id>/leer", methods=["PUT"])

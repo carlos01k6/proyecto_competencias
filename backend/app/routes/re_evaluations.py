@@ -166,6 +166,14 @@ def listar_reevaluaciones_docente(docente_id):
         if not pendientes:
             pendientes = obtener_pendientes_fallback(docente_id)
 
+        # Batch-fetch student names to avoid N+1 queries
+        student_ids = list({item.get('student_id') or item.get('estudiante_id') for item in pendientes if item.get('student_id') or item.get('estudiante_id')})
+        nombres_map = {}
+        if student_ids:
+            users_resp = supabase.table('users').select('id, name, email').in_('id', student_ids).execute()
+            for u in users_resp.data or []:
+                nombres_map[u['id']] = u.get('name') or u.get('email') or u['id']
+
         agrupado = {}
         for item in pendientes:
             student_id = item.get('student_id') or item.get('estudiante_id')
@@ -173,11 +181,12 @@ def listar_reevaluaciones_docente(docente_id):
                 continue
 
             if student_id not in agrupado:
+                nombre = nombres_map.get(student_id, student_id)
                 agrupado[student_id] = {
                     'estudiante_id': student_id,
                     'student_id': student_id,
-                    'estudiante_nombre': get_student_name(student_id),
-                    'student_name': get_student_name(student_id),
+                    'estudiante_nombre': nombre,
+                    'student_name': nombre,
                     're_evaluaciones_pendientes': []
                 }
 
@@ -211,6 +220,8 @@ def completar_reevaluacion(re_eval_id):
         data = request.get_json() or {}
         calificacion_nueva = data.get('calificacion_nueva')
         observacion = data.get('observacion', '')
+        student_id = data.get('student_id')
+        criteria_id = data.get('criteria_id')
 
         try:
             calificacion = float(calificacion_nueva)
@@ -220,13 +231,36 @@ def completar_reevaluacion(re_eval_id):
         if calificacion < 0 or calificacion > 100:
             return jsonify({'error': 'calificacion_nueva debe estar entre 0 y 100'}), 400
 
-        actualizacion = {
+        # Actualizar en re_evaluaciones si el ID corresponde a ese tabla
+        actualizacion_re = {
             'estado': 'completada',
             'calificacion_nueva': calificacion,
             'observacion': observacion,
             'fecha_completacion': datetime.now().isoformat()
         }
-        supabase.table('re_evaluaciones').update(actualizacion).eq('id', re_eval_id).execute()
+        supabase.table('re_evaluaciones').update(actualizacion_re).eq('id', re_eval_id).execute()
+
+        # Actualizar la nota real en evaluations (esto es lo que realmente importa)
+        if student_id and criteria_id:
+            try:
+                supabase.table('evaluations').update({
+                    'grade': calificacion,
+                    'observation': f"Re-evaluación: {observacion}" if observacion else "Re-evaluación aplicada",
+                    'grading_date': datetime.now().isoformat()
+                }).eq('student_id', student_id).eq('criteria_id', criteria_id).execute()
+
+                # Enviar notificación al estudiante
+                from .emails import enviar_notificacion_calificacion
+                enviar_notificacion_calificacion(
+                    student_id=student_id,
+                    activity_id=None,
+                    grade=calificacion,
+                    observation=f"Re-evaluación: {observacion}" if observacion else None,
+                    teacher_id=user_id
+                )
+            except Exception as e:
+                print(f"ADVERTENCIA AL ACTUALIZAR EVALUACION EN RE-EVAL: {str(e)}")
+
         return jsonify({'success': True}), 200
     except Exception as e:
         print(f"ERROR COMPLETAR RE-EVALUACION: {str(e)}")

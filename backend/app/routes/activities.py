@@ -4,6 +4,7 @@ from ..supabase_client import get_supabase
 from .notificaciones import crear_notificacion_estudiante
 from .emails import enviar_mensaje, is_valid_email
 import uuid
+import jwt
 
 actividades_bp = Blueprint('activities', __name__, url_prefix='/api/actividades')
 supabase: Client = get_supabase()
@@ -13,10 +14,10 @@ def get_user_id_from_token():
     if not token:
         return None
     try:
-        user = supabase.auth.get_user(token)
-        return user.user.id
+        payload = jwt.decode(token, options={"verify_signature": False})
+        return payload.get('sub')
     except Exception as e:
-        print(f"DEBUG: Error al validar token: {str(e)}")
+        print(f"DEBUG: Error al extraer token: {str(e)}")
         return None
 
 def obtener_todos_estudiantes():

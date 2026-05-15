@@ -22,3 +22,17 @@ export async function crearUsuario({ email, password, name, role }) {
   })
   return response.data
 }
+
+export async function editarUsuario(userId, { name, role }) {
+  const response = await axios.put(`${API_URL}/${userId}`, { name, role }, {
+    headers: getAuthHeader()
+  })
+  return response.data
+}
+
+export async function eliminarUsuario(userId) {
+  const response = await axios.delete(`${API_URL}/${userId}`, {
+    headers: getAuthHeader()
+  })
+  return response.data
+}

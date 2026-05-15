@@ -45,6 +45,7 @@ from .routes.alertas import alertas_bp
 from .routes.historial import historial_bp
 from .routes.matriz_competencias import matriz_bp
 from .routes.reportes_competencias import reportes_comp_bp
+from .routes.sections import secciones_bp
 
 
 def get_user_role_from_token():
@@ -134,6 +135,7 @@ def create_app():
     app.register_blueprint(historial_bp)
     app.register_blueprint(matriz_bp)
     app.register_blueprint(reportes_comp_bp)
+    app.register_blueprint(secciones_bp)
 
     with app.app_context():
         db.create_all()

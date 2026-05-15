@@ -34,6 +34,8 @@ import RolesPermisoPage from './pages/RolePermissionsPage'
 import AsistenciaPage from './pages/AttendancePage'
 import ExportarPage from './pages/ExportPage'
 import AdminCoursesPage from './pages/AdminCoursesPage'
+import SectionsPage from './pages/SectionsPage'
+import MisSecciones from './pages/MisSecciones'
 import AlertasPage from './pages/AlertasPage'
 import HistorialEstudiantePage from './pages/HistorialEstudiantePage'
 import MatrizCompetenciasPage from './pages/MatrizCompetenciasPage'
@@ -97,6 +99,8 @@ function App() {
                     <Route path="/asistencia" element={<AsistenciaPage usuario={usuario} />} />
                     <Route path="/exportar" element={<ExportarPage usuario={usuario} />} />
                     <Route path="/admin-cursos" element={<AdminCoursesPage usuario={usuario} />} />
+                    <Route path="/secciones" element={<SectionsPage usuario={usuario} />} />
+                    <Route path="/mis-secciones" element={<MisSecciones usuario={usuario} />} />
                     <Route path="/alertas" element={<AlertasPage usuario={usuario} />} />
                     <Route path="/historial/:estudianteId" element={<HistorialEstudiantePage usuario={usuario} />} />
                     <Route path="/matriz-competencias" element={<MatrizCompetenciasPage usuario={usuario} />} />

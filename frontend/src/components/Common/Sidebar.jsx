@@ -1,9 +1,9 @@
 ﻿import React, { useState } from "react"
 import { Link, useLocation } from "react-router-dom"
-import { 
+import {
   Home, BookOpen, FileText, BarChart3, Award, CheckSquare, TrendingUp,
   ClipboardList, Settings, Calendar, ChevronDown, Zap, LogOut, Users,
-  GraduationCap, FileCheck, CalendarCheck, Download, Bell, Grid3x3
+  GraduationCap, FileCheck, CalendarCheck, Download, Bell, Grid3x3, LayoutGrid
 } from "lucide-react"
 
 export default function Sidebar({ usuario, onToggleExpand }) {
@@ -50,11 +50,12 @@ export default function Sidebar({ usuario, onToggleExpand }) {
         ]
       },
       {
-        title: "Cursos",
+        title: "Cursos y Secciones",
         icon: BookOpen,
         color: "from-cyan-500 to-cyan-600",
         items: [
-          { path: "/admin-cursos", label: "Cursos Registrados", icon: BookOpen }
+          { path: "/admin-cursos", label: "Cursos Registrados", icon: BookOpen },
+          { path: "/secciones", label: "Secciones / Aulas", icon: LayoutGrid }
         ]
       },
       {
@@ -108,6 +109,7 @@ export default function Sidebar({ usuario, onToggleExpand }) {
         color: "from-purple-500 to-purple-600",
         items: [
           { path: "/mis-cursos", label: "Mis Cursos", icon: BookOpen },
+          { path: "/mis-secciones", label: "Mis Secciones", icon: LayoutGrid },
           { path: "/estudiantes", label: "Mis Estudiantes", icon: Users }
         ]
       },

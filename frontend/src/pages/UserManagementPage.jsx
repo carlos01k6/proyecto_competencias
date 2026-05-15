@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react"
-import { Users, UserPlus, X } from "lucide-react"
+import { Users, UserPlus, X, Trash2, Pencil } from "lucide-react"
 import * as usuariosService from "../services/users"
 
 const ROLES = [
@@ -26,6 +26,12 @@ export default function GestionarUsuariosPage() {
   const [form, setForm] = useState(FORM_INITIAL)
   const [guardando, setGuardando] = useState(false)
   const [errorModal, setErrorModal] = useState(null)
+  const [eliminando, setEliminando] = useState(null)
+  const [confirmEliminar, setConfirmEliminar] = useState(null)
+  const [editando, setEditando] = useState(null)
+  const [formEdit, setFormEdit] = useState({ name: "", role: "student" })
+  const [guardandoEdit, setGuardandoEdit] = useState(false)
+  const [errorEdit, setErrorEdit] = useState(null)
 
   const cargarUsuarios = async () => {
     setCargando(true)
@@ -63,6 +69,41 @@ export default function GestionarUsuariosPage() {
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
+  const abrirEditar = (usuario) => {
+    setFormEdit({ name: usuario.nombre || "", role: usuario.role || "student" })
+    setErrorEdit(null)
+    setEditando(usuario)
+  }
+
+  const handleEditar = async (e) => {
+    e.preventDefault()
+    if (!formEdit.name.trim()) { setErrorEdit("El nombre es requerido."); return }
+    setGuardandoEdit(true)
+    setErrorEdit(null)
+    try {
+      await usuariosService.editarUsuario(editando.id, formEdit)
+      setEditando(null)
+      await cargarUsuarios()
+    } catch (err) {
+      setErrorEdit(err.response?.data?.error || err.message)
+    } finally {
+      setGuardandoEdit(false)
+    }
+  }
+
+  const handleEliminar = async (usuario) => {
+    setEliminando(usuario.id)
+    try {
+      await usuariosService.eliminarUsuario(usuario.id)
+      setConfirmEliminar(null)
+      await cargarUsuarios()
+    } catch (err) {
+      alert(err.response?.data?.error || err.message)
+    } finally {
+      setEliminando(null)
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -129,6 +170,7 @@ export default function GestionarUsuariosPage() {
                   <th className="px-6 py-4 text-left font-semibold text-neutral-300">Nombre</th>
                   <th className="px-6 py-4 text-left font-semibold text-neutral-300">Rol</th>
                   <th className="px-6 py-4 text-left font-semibold text-neutral-300">Fecha Registro</th>
+                  <th className="px-6 py-4 text-left font-semibold text-neutral-300">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -142,6 +184,24 @@ export default function GestionarUsuariosPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-neutral-400">{formatearFecha(usuario.created_at)}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => abrirEditar(usuario)}
+                          className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-700 rounded-lg transition"
+                          title="Editar usuario"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setConfirmEliminar(usuario)}
+                          className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition"
+                          title="Eliminar usuario"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -149,6 +209,94 @@ export default function GestionarUsuariosPage() {
           </div>
         )}
       </div>
+
+      {/* Modal editar usuario */}
+      {editando && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-neutral-900 border border-neutral-700/50 rounded-2xl shadow-2xl w-full max-w-md mx-4">
+            <div className="flex items-center justify-between p-6 border-b border-neutral-700/50">
+              <h2 className="text-xl font-bold text-white">Editar Usuario</h2>
+              <button onClick={() => setEditando(null)} className="text-neutral-400 hover:text-white transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleEditar} className="p-6 space-y-4">
+              {errorEdit && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+                  <p className="text-red-400 text-sm">{errorEdit}</p>
+                </div>
+              )}
+              <p className="text-neutral-400 text-sm">{editando.email}</p>
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-1">Nombre completo</label>
+                <input
+                  type="text"
+                  value={formEdit.name}
+                  onChange={e => setFormEdit(p => ({ ...p, name: e.target.value }))}
+                  className="w-full bg-neutral-800 border border-neutral-600 rounded-lg px-4 py-2 text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500 transition"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-1">Rol</label>
+                <select
+                  value={formEdit.role}
+                  onChange={e => setFormEdit(p => ({ ...p, role: e.target.value }))}
+                  className="w-full bg-neutral-800 border border-neutral-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-emerald-500 transition"
+                >
+                  {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                </select>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setEditando(null)} disabled={guardandoEdit}
+                  className="flex-1 px-4 py-2 border border-neutral-600 text-neutral-300 rounded-lg hover:bg-neutral-800 transition disabled:opacity-50">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={guardandoEdit}
+                  className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg transition disabled:opacity-50">
+                  {guardandoEdit ? "Guardando..." : "Guardar Cambios"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmar eliminación */}
+      {confirmEliminar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-neutral-900 border border-neutral-700/50 rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-red-500/20 rounded-lg">
+                <Trash2 className="w-5 h-5 text-red-400" />
+              </div>
+              <h2 className="text-xl font-bold text-white">Eliminar Usuario</h2>
+            </div>
+            <p className="text-neutral-300 mb-2">
+              ¿Estás seguro que deseas eliminar este usuario?
+            </p>
+            <p className="text-neutral-400 text-sm mb-6">
+              <span className="text-white font-semibold">{confirmEliminar.nombre}</span> ({confirmEliminar.email})
+              <br />Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmEliminar(null)}
+                disabled={eliminando === confirmEliminar.id}
+                className="flex-1 px-4 py-2 border border-neutral-600 text-neutral-300 rounded-lg hover:bg-neutral-800 transition disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleEliminar(confirmEliminar)}
+                disabled={eliminando === confirmEliminar.id}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-lg transition disabled:opacity-50"
+              >
+                {eliminando === confirmEliminar.id ? "Eliminando..." : "Eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal crear usuario */}
       {modalAbierto && (

@@ -36,13 +36,20 @@ export default function ReEvaluationsPage({ usuario }) {
 
   const guardarEvaluacion = async (e) => {
     e.preventDefault()
-    if (!reevaluacionActiva?.id) {
-      alert("Esta re-evaluación no tiene ID para completar")
+    if (!reevaluacionActiva?.student_id || !reevaluacionActiva?.criteria_id) {
+      alert("Faltan datos del estudiante o criterio para guardar la re-evaluación")
       return
     }
 
     try {
-      await reEvaluationsService.completarReevaluacion(reevaluacionActiva.id, formData)
+      await reEvaluationsService.completarReevaluacion(
+        reevaluacionActiva.id || reevaluacionActiva.student_id,
+        {
+          ...formData,
+          student_id: reevaluacionActiva.student_id,
+          criteria_id: reevaluacionActiva.criteria_id,
+        }
+      )
       setReevaluacionActiva(null)
       await cargarDisponibles()
     } catch (err) {
